@@ -211,6 +211,14 @@ ul.checklist li.bad{color:var(--bad)}
         <div class="checks" id="habitudes"></div>
       </section>
 
+      <section class="card" id="sec_adapt">
+        <p class="eyebrow">Mesures d'adaptation</p>
+        <h2>Adaptations</h2>
+        <p class="hint">Les mesures cochées et votre commentaire sont repris dans le commentaire aux parents, avec la « Version modèle » comme avec Claude.</p>
+        <div class="checks" id="adaptations"></div>
+        <label class="field" style="margin-top:10px"><span>Commentaire sur les adaptations (écrit pour les parents, il est repris tel quel par la « Version modèle »)</span><textarea id="adapt_notes" placeholder="Ex. : La lecture des questions à voix haute l'aide à mieux comprendre ce qui est demandé."></textarea></label>
+      </section>
+
       <section class="card" id="sec_dn">
         <p class="eyebrow">Dépistage</p>
         <h2>Texte narratif</h2>
@@ -326,6 +334,7 @@ const LEVELS=[
   ["E","se situent sous les attentes","moins de 60 %"]];
 const FORCES=[["f_participe","Participe bien","participe bien en classe"],["f_persevere","Persévère","fait preuve de persévérance"],["f_autonome","Autonome","travaille de façon autonome"],["f_soigne","Travail soigné","remet un travail soigné"]];
 const HABITS=[["h_ecoute","Écoute ou implication à améliorer","Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser."],["h_temps","A besoin de plus de temps","Un peu plus de temps lui est parfois nécessaire pour terminer son travail."],["h_consigne","Commence avant d'avoir compris","Il arrive que votre enfant commence avant d'avoir bien saisi la consigne."],["absences","Absences fréquentes (portrait possiblement incomplet)",null],["h_recurrent","Les mêmes difficultés reviennent d'une évaluation à l'autre",null]];
+const ADAPTS=[["a_lecture","Lecture des questions à voix haute","la lecture des questions à voix haute"],["a_temps","Temps supplémentaire","du temps supplémentaire"],["a_techno","Outil d'aide technologique (synthèse vocale, etc.)","un outil d'aide technologique"],["a_calme","Local calme ou isolé","un local plus calme"],["a_consignes","Consignes reformulées ou découpées","des consignes reformulées"],["a_texte","Texte aéré ou agrandi","un texte aéré"],["a_pi","Plan d'intervention","un plan d'intervention"]];
 const INCOMPLET="En raison d'absences, ce portrait reste incomplet et sera précisé au cours de l'étape.";
 const DN=[["dn_comprendre","Comprendre","Personnages, lieux, problème, événements, fin"],["dn_interpreter","Interpréter","Inférences, intentions et émotions des personnages"],["dn_reagir","Réagir","Exprimer et justifier ses réactions"],["dn_apprecier","Apprécier","Porter un jugement sur l'histoire"]];
 const DI=[["di_comprendre","Comprendre","Repérer les informations importantes"],["di_idee","Idée principale","Dégager l'idée principale d'un paragraphe"],["di_interpreter","Interpréter","Faire des liens et des inférences"],["di_reagir","Réagir","Exprimer ce qu'il retient, faire des liens personnels"]];
@@ -348,6 +357,7 @@ $("#ent_choix").innerHTML=row("choix_raisons","Pourquoi as-tu choisi ce livre?",
 $("#ent_oral").innerHTML=row("fl_vitesse","Vitesse de lecture","",[["lente","Lente"],["adequate","Adéquate"],["rapide","Trop rapide"]])+row("meprises","Nombre de méprises","Précision",MEPR)+row("fl_autocorr","Autocorrection","Précision : corrige ses erreurs")+row("decodage","Décodage","Précision")+row("groupes","Lire par groupes de mots","Phrasé")+row("ponctuation","Respect de la ponctuation","Phrasé")+row("expressive","Lecture expressive","Intonation");
 $("#ent_comp").innerHTML=row("rappel","Rappel de l'histoire","");
 $("#ent_mots").innerHTML=[1,2,3].map(n=>'<div class="word"><input type="text" id="mot'+n+'" placeholder="Mot '+n+'" aria-label="Mot '+n+'">'+seg("def"+n,RATE)+'</div>').join("")+'<p class="hint">Cote : définition plausible.</p>';
+$("#adaptations").innerHTML=ADAPTS.map(a=>chk(a[0],a[1])).join("");
 $("#strategies").innerHTML=STRATS.map(s=>chk(s[0],s[1])).join("");
 $("#ent_interp").innerHTML=row("emotion","Pertinence de l'émotion identifiée","")+row("indices","Nombre d'indices mentionnés","",COUNT);
 
@@ -739,6 +749,9 @@ function templateComment(s){
   const rec=recurrent(s);
   if(rec.length||s.h_recurrent)add(2,"Les mêmes difficultés reviennent d'une évaluation à l'autre"+(rec.length?", surtout pour "+joinFr(rec.map(r=>r.nom)):"")+".",REQ);
   HABITS.forEach(h=>{if(s[h[0]]&&h[2])add(2,h[2],50)});
+  const ad=ADAPTS.filter(a=>s[a[0]]).map(a=>a[2]);
+  if(ad.length)add(2,"Votre enfant bénéficie de mesures d'adaptation, comme "+joinFr(ad.slice(0,3))+", qui l'aident à montrer sa compréhension.",REQ);
+  const an=(s.adapt_notes||"").trim();if(an)add(2,/[.!?]$/.test(an)?an:an+".",REQ);
   // P3 à P5
   const order=[...dep.filter(n=>n.c==="defi").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="defi"),...dep.filter(n=>n.c==="voie").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="voie")];
   const key=order[0]||"def";
@@ -763,6 +776,8 @@ function describe(s){
   add("Absences fréquentes cochées (portrait possiblement incomplet)",s.absences?"OUI":"non");
   add("Forces personnelles cochées",FORCES.filter(f=>s[f[0]]).map(f=>f[1]).join(", ")||"aucune");
   add("Habitudes cochées",HABITS.filter(h=>s[h[0]]).map(h=>h[1]).join(", ")||"aucune");
+  add("MESURES D'ADAPTATION cochées",ADAPTS.filter(a=>s[a[0]]).map(a=>a[1]).join(", ")||"aucune");
+  add("COMMENTAIRE DE L'ENSEIGNANTE SUR LES ADAPTATIONS (obligatoire à intégrer)",s.adapt_notes);
   L.push("\nDÉPISTAGE – TEXTE NARRATIF (− défi, +/− en voie, + force)");
   DN.forEach(d=>add(d[1]+" ("+d[2]+")",v(s,d[0])));add("Notes",s.dn_notes);
   L.push("\nDÉPISTAGE – TEXTE INFORMATIF");
@@ -812,12 +827,14 @@ RÈGLES
 STRUCTURE (paragraphes séparés par une ligne vide)
 1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif, texte informatif et questionnaire de compréhension : utilise l'analyse par processus et les croisements, en mots de parents) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
 2. QUAND VOTRE ENFANT LIT (paragraphe distinct, deux ou trois phrases) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Pour la lecture à voix haute, analyse les cotes de fluidité ET le commentaire de l'enseignante, puis résume-les en UNE phrase simple pour les parents (ex. « lit à voix haute avec aisance », « lit encore parfois mot à mot », « gagnerait à faire une pause aux points »). Les difficultés cotées « − » y sont nommées. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
-3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
+${ADAPTS.some(a=>s[a[0]])||txt(s.adapt_notes)?"ADAPTATIONS (OBLIGATOIRE) : à la fin du paragraphe 2, nommer simplement les mesures d'adaptation dont bénéficie votre enfant et intégrer fidèlement le sens du commentaire de l'enseignante sur les adaptations.\n":""}3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
 ${s.absences?"PORTRAIT INCOMPLET : à la fin du paragraphe 1, écrire « "+INCOMPLET+" » et rester prudent : présenter les observations comme partielles, sans conclure trop fermement.\n":""}4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
 5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
 
 Avant de répondre, vérifie : niveau conforme, aucune contradiction ni répétition, aucun chiffre, aucun « il »/« elle », aucun remerciement, une seule recommandation, longueur respectée.
 Réponds UNIQUEMENT avec le commentaire, sans titre, sans guillemets, sans explication.
+
+IMPORTANT : tous les commentaires écrits par l'enseignante (notes, observations, adaptations) sont prioritaires. Leur contenu doit se retrouver dans le commentaire, reformulé pour les parents.
 
 DONNÉES DE L'ÉLÈVE (observations qualitatives de l'enseignante)
 ${describe(s)}`;
@@ -846,6 +863,7 @@ function updateChecks(){
   ck(!/(dépistage|entretien|inférence|interpréta|méprise|fluidité|décodage|stratégie|compétence|rappel|critère|narratif|informatif)/i.test(t),"Aucun mot d'enseignant (dépistage, inférence, fluidité…)");
   ck(t.includes("D'ici la mi-novembre")||t.includes("D’ici la mi-novembre"),"Objectif : « D'ici la mi-novembre… »");
   const rec=(t.match(/À la maison, vous pouvez/g)||[]).length;ck(rec===1,"Une seule recommandation « À la maison, vous pouvez… »");
+  if(ADAPTS.some(a=>s[a[0]])||txt(s.adapt_notes))ck(/adapt/i.test(t)||(txt(s.adapt_notes)&&t.includes(s.adapt_notes.trim().slice(0,25))),"Mesures d'adaptation mentionnées");
   if(s.absences){ck(tl.includes("présence régulière"),"Phrase sur la présence (absences fréquentes)");ck(tl.includes("incomplet"),"Mention du portrait incomplet (absences fréquentes)")}
   $("#checks").innerHTML=C.map(c=>'<li class="'+(c[0]?"":"bad")+'">'+c[1]+'</li>').join("");
   $("#btnFit").hidden=!sample||(n>=LR.min&&n<=LR.max);
