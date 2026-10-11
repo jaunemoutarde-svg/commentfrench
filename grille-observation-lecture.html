@@ -220,7 +220,7 @@ const LEVELS=[
   ["C","répondent aux attentes","70 à 79 %"],
   ["D","répondent aux attentes avec difficulté","60 à 69 %"],
   ["E","se situent sous les attentes","moins de 60 %"]];
-const FORCES=[["f_participe","Participe bien","participe bien en classe"],["f_persevere","Persévère","fait preuve de persévérance"],["f_autonome","Autonome","travaille de façon autonome"],["f_soigne","Travail soigné","remet un travail soigné"],["f_aide","Va chercher de l'aide (pairs ou adulte)","va chercher de l'aide auprès de ses pairs ou de l'adulte"]];
+const FORCES=[["f_participe","Participe bien","participe bien en classe"],["f_persevere","Persévère","fait preuve de persévérance"],["f_autonome","Autonome","travaille de façon autonome"],["f_soigne","Travail soigné","remet un travail soigné"]];
 const HABITS=[["h_ecoute","Écoute ou implication à améliorer","Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser."],["h_temps","A besoin de plus de temps","Un peu plus de temps lui est parfois nécessaire pour terminer son travail."],["h_consigne","Commence avant d'avoir compris","Il arrive que votre enfant commence avant d'avoir bien saisi la consigne."]];
 const DN=[["dn_comprendre","Comprendre","Personnages, lieux, problème, événements, fin"],["dn_interpreter","Interpréter","Inférences, intentions et émotions des personnages"],["dn_reagir","Réagir","Exprimer et justifier ses réactions"],["dn_apprecier","Apprécier","Porter un jugement sur l'histoire"]];
 const DI=[["di_comprendre","Comprendre","Repérer les informations importantes"],["di_idee","Idée principale","Dégager l'idée principale d'un paragraphe"],["di_interpreter","Interpréter","Faire des liens et des inférences"],["di_reagir","Réagir","Exprimer ce qu'il retient, faire des liens personnels"]];
@@ -255,7 +255,7 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify({state:getState(),co
 form.addEventListener("input",()=>{if(isExample){isExample=false;$("#exampleBanner").hidden=true}save()});
 form.addEventListener("change",save);
 
-const EXAMPLE={state:{date:"",annee:"5e année",discipline:"Français – lecture",niveau:"B",f_participe:true,f_persevere:true,f_aide:true,h_consigne:true,
+const EXAMPLE={state:{date:"",annee:"5e année",discipline:"Français – lecture",niveau:"B",f_participe:true,f_persevere:true,f_autonome:true,h_consigne:true,
  dn_comprendre:"+",dn_interpreter:"+/-",dn_reagir:"+",dn_apprecier:"+",dn_notes:"Repère bien les personnages, le lieu et le problème. Résume l'histoire avec les éléments importants. Ses inférences restent parfois en surface.",
  di_comprendre:"+/-",di_idee:"-",di_interpreter:"+/-",di_reagir:"+",di_notes:"Trouve les informations explicites, mais confond souvent un détail et l'idée principale d'un paragraphe. Utilise peu les intertitres.",
  titre:"Le journal d'un dégonflé",auteur:"Jeff Kinney",choix_raisons:"3",pointure_raisons:"2",choix_notes:"Connaît bien ses goûts (humour, bandes dessinées).",
@@ -394,6 +394,7 @@ RÈGLES
 - Ne jamais écrire « Merci de votre collaboration ». Ne jamais écrire « maîtrisé ».
 - Niveau A : notions « solides ». Niveau B : notions « bien comprises ». Autres : « en voie d'acquisition », « fragile », « représente un défi ».
 - Nommer au maximum 2 ou 3 éléments par catégorie (forces, fragilités, défis), regroupés par grands domaines. Chaque élément n'apparaît qu'une seule fois, sans contradiction.
+- Parler SEULEMENT de l'élève et de sa capacité à lire. Ne jamais parler de coopération, de travail d'équipe, de collaboration, des pairs ou des camarades.
 - Ne jamais mentionner les sorties de classe, les distractions ni les comportements négatifs de façon directe.
 
 STRUCTURE (paragraphes séparés par une ligne vide)
@@ -428,6 +429,7 @@ function updateChecks(){
   ck(!/\d/.test(t),"Aucun chiffre");
   ck(!/maîtris/i.test(t),"Pas de « maîtrisé »");
   ck(!/merci/i.test(t),"Aucun remerciement");
+  ck(!/(équipe|coopér|collabor|pairs|camarade)/i.test(t),"Aucune mention de coopération ou de travail d'équipe");
   ck(t.includes("D'ici la mi-novembre")||t.includes("D’ici la mi-novembre"),"Objectif : « D'ici la mi-novembre… »");
   const rec=(t.match(/À la maison, vous pouvez/g)||[]).length;ck(rec===1,"Une seule recommandation « À la maison, vous pouvez… »");
   if(s.absences)ck(tl.includes("présence régulière"),"Phrase sur la présence (absences cochées)");
