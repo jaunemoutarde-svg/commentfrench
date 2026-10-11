@@ -194,8 +194,6 @@ ul.checklist li.bad{color:var(--bad)}
         </div>
         <p class="sub-h">Niveau global par rapport aux attentes (échelle de l'école)</p>
         <div class="levels" id="levels"></div>
-        <p class="sub-h">Absences</p>
-        <div class="checks"><label class="chk"><input type="checkbox" id="absences"> Absences à souligner</label></div>
       </section>
 
       <section class="card">
@@ -309,7 +307,8 @@ const LEVELS=[
   ["D","répondent aux attentes avec difficulté","60 à 69 %"],
   ["E","se situent sous les attentes","moins de 60 %"]];
 const FORCES=[["f_participe","Participe bien","participe bien en classe"],["f_persevere","Persévère","fait preuve de persévérance"],["f_autonome","Autonome","travaille de façon autonome"],["f_soigne","Travail soigné","remet un travail soigné"]];
-const HABITS=[["h_ecoute","Écoute ou implication à améliorer","Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser."],["h_temps","A besoin de plus de temps","Un peu plus de temps lui est parfois nécessaire pour terminer son travail."],["h_consigne","Commence avant d'avoir compris","Il arrive que votre enfant commence avant d'avoir bien saisi la consigne."]];
+const HABITS=[["h_ecoute","Écoute ou implication à améliorer","Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser."],["h_temps","A besoin de plus de temps","Un peu plus de temps lui est parfois nécessaire pour terminer son travail."],["h_consigne","Commence avant d'avoir compris","Il arrive que votre enfant commence avant d'avoir bien saisi la consigne."],["absences","Absences fréquentes (portrait possiblement incomplet)",null]];
+const INCOMPLET="En raison d'absences, ce portrait reste incomplet et sera précisé au cours de l'étape.";
 const DN=[["dn_comprendre","Comprendre","Personnages, lieux, problème, événements, fin"],["dn_interpreter","Interpréter","Inférences, intentions et émotions des personnages"],["dn_reagir","Réagir","Exprimer et justifier ses réactions"],["dn_apprecier","Apprécier","Porter un jugement sur l'histoire"]];
 const DI=[["di_comprendre","Comprendre","Repérer les informations importantes"],["di_idee","Idée principale","Dégager l'idée principale d'un paragraphe"],["di_interpreter","Interpréter","Faire des liens et des inférences"],["di_reagir","Réagir","Exprimer ce qu'il retient, faire des liens personnels"]];
 const COUNT=["1","2","3","4","5","plus"];
@@ -555,6 +554,7 @@ function templateComment(s){
     else p1+="Votre enfant réussit bien à "+x+". "}
   if(V.length)p1+="Votre enfant apprend encore à "+joinFr(V)+". ";
   if(D.length)p1+=cap(joinFr(D))+" lui demande"+(D.length>1?"nt":"")+" encore des efforts. ";
+  if(s.absences)p1+=INCOMPLET;
   P.push(p1.trim());
   // P2 : ce qu'on observe quand l'enfant lit (trois phrases au plus)
   const e=entretien(s);const cl=[];
@@ -571,8 +571,8 @@ function templateComment(s){
   if(e.oral)cl.push(C.oral[e.oral]);
   ["rappel","mots","emo"].forEach(k=>{if(e[k]==="force")cl.push(C[k].force)});
   ["rappel","mots","emo"].forEach(k=>{if(e[k]&&e[k]!=="force")cl.push(C[k][e[k]])});
-  const p2=cl.slice(0,3);
-  HABITS.forEach(h=>{if(s[h[0]])p2.push(h[2])});
+  const p2=cl.slice(0,s.absences?2:3);
+  HABITS.forEach(h=>{if(s[h[0]]&&h[2])p2.push(h[2])});
   if(p2.length){p2[0]="Lors de nos lectures ensemble, "+low(p2[0]);P.push(p2.join(" "))}
   // P3 à P5
   const order=[...dep.filter(n=>n.c==="defi").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="defi"),...dep.filter(n=>n.c==="voie").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="voie")];
@@ -589,7 +589,7 @@ function describe(s){
   const L=[];const add=(t,x)=>{if(x)L.push("- "+t+" : "+x)};
   L.push("Année : "+(s.annee||"3e cycle"));
   add("Niveau global (échelle de l'école)",s.niveau?s.niveau+" → « "+levelPhrase(s.niveau)+" »":"non indiqué");
-  add("Absences cochées",s.absences?"OUI":"non");
+  add("Absences fréquentes cochées (portrait possiblement incomplet)",s.absences?"OUI":"non");
   add("Forces personnelles cochées",FORCES.filter(f=>s[f[0]]).map(f=>f[1]).join(", ")||"aucune");
   add("Habitudes cochées",HABITS.filter(h=>s[h[0]]).map(h=>h[1]).join(", ")||"aucune");
   L.push("\nDÉPISTAGE – TEXTE NARRATIF (− défi, +/− en voie, + force)");
@@ -635,7 +635,7 @@ STRUCTURE (paragraphes séparés par une ligne vide)
 1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif et texte informatif) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
 2. QUAND VOTRE ENFANT LIT (paragraphe distinct, trois phrases au plus) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Pour la lecture à voix haute, analyse les cotes de fluidité ET le commentaire de l'enseignante, puis résume-les en UNE phrase simple pour les parents (ex. « lit à voix haute avec aisance », « lit encore parfois mot à mot », « gagnerait à faire une pause aux points »). Réussites d'abord. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
 3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
-4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
+${s.absences?"PORTRAIT INCOMPLET : à la fin du paragraphe 1, écrire « "+INCOMPLET+" » et rester prudent : présenter les observations comme partielles, sans conclure trop fermement.\n":""}4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
 5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
 
 Avant de répondre, vérifie : niveau conforme, aucune contradiction ni répétition, aucun chiffre, aucun « il »/« elle », aucun remerciement, une seule recommandation, longueur respectée.
@@ -668,7 +668,7 @@ function updateChecks(){
   ck(!/(dépistage|entretien|inférence|interpréta|méprise|fluidité|décodage|stratégie|compétence|rappel|critère|narratif|informatif)/i.test(t),"Aucun mot d'enseignant (dépistage, inférence, fluidité…)");
   ck(t.includes("D'ici la mi-novembre")||t.includes("D’ici la mi-novembre"),"Objectif : « D'ici la mi-novembre… »");
   const rec=(t.match(/À la maison, vous pouvez/g)||[]).length;ck(rec===1,"Une seule recommandation « À la maison, vous pouvez… »");
-  if(s.absences)ck(tl.includes("présence régulière"),"Phrase sur la présence (absences cochées)");
+  if(s.absences){ck(tl.includes("présence régulière"),"Phrase sur la présence (absences fréquentes)");ck(tl.includes("incomplet"),"Mention du portrait incomplet (absences fréquentes)")}
   $("#checks").innerHTML=C.map(c=>'<li class="'+(c[0]?"":"bad")+'">'+c[1]+'</li>').join("");
   $("#btnFit").hidden=!sample||(n>=900&&n<=1000);
 }
