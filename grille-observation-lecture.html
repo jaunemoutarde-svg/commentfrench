@@ -343,6 +343,12 @@ function persist(id,now){localSaveAll();if(!dbCol)return;clearTimeout(timers[id]
 function flush(){Object.keys(timers).forEach(id=>persist(id,true))}
 function setInfo(t,bad){const el=$("#storeInfo");el.textContent=t;el.style.color=bad?"var(--bad)":""}
 
+/* un numéro écrit dans le prénom (ex. « 1.6 Alex ») passe dans le champ Numéro */
+function normalizeAll(){Object.keys(students).forEach(id=>{const r=students[id],st=r.state=r.state||{};
+  if(parseNo(st.numero))return;const src=parseNo(r.nom)?r.nom:(parseNo(st.prenom)?st.prenom:null);if(!src)return;
+  const e=parseEntry(src);st.numero=e.no.code;st.annee=e.no.annee+"e année";st.prenom=e.nom;r.nom=e.nom;persist(id,true)})}
+$("#prenom").addEventListener("change",()=>{const v=$("#prenom").value;if(!parseNo(v))return;const e=parseEntry(v);
+  $("#prenom").value=e.nom;$("#numero").value=e.no.code;$("#annee").value=e.no.annee+"e année";save()});
 function save(){
   if(!currentId||!students[currentId]){return}
   const r=students[currentId];r.state=getState();r.comment=$("#comment").value;r.updatedAt=Date.now();
@@ -435,7 +441,7 @@ const EXAMPLE={state:{date:"",annee:"5e année",discipline:"Français – lectur
 function initClass(){
   try{const f=localStorage.getItem("grilleLecture.filtre");if(f!=null)$("#filtre").value=f}catch(e){}
   const L=localLoad();
-  if(L&&L.students){students=L.students;currentId=L.currentId}
+  if(L&&L.students){students=L.students;currentId=L.currentId;normalizeAll()}
   else{let d=null;try{d=JSON.parse(localStorage.getItem(OLD_KEY)||"null")}catch(e){}
     if(d&&d.state&&!d.isExample){const id=newId();students[id]={nom:(d.state.prenom||"").trim()||"Élève 1",state:d.state,comment:d.comment||"",updatedAt:Date.now()};currentId=id;localSaveAll()}}
   setInfo("Enregistré dans ce navigateur seulement (connexion au compte en cours…).");
@@ -446,7 +452,7 @@ function initClass(){
     if(!uid){setInfo("Enregistré dans ce navigateur seulement. Connectez-vous à Claude pour retrouver votre classe sur tous vos appareils.");return}
     dbCol=db.collection("data/users/"+uid);
     const snap=await dbCol.get();const remote={};snap.docs.forEach(d=>{const v=d.data();if(v&&v.nom!=null)remote[d.id]=v});
-    if(Object.keys(remote).length){students=remote;if(!students[currentId])currentId=null;localSaveAll();showInitial()}
+    if(Object.keys(remote).length){students=remote;if(!students[currentId])currentId=null;normalizeAll();localSaveAll();showInitial()}
     else Object.keys(students).forEach(id=>persist(id,true));
     setInfo("Classe enregistrée dans votre compte Claude. Elle est privée : vous seule la voyez.");
   }).catch(()=>setInfo("Enregistré dans ce navigateur seulement (compte injoignable).",true));
