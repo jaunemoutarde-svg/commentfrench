@@ -69,6 +69,16 @@ textarea{min-height:76px;resize:vertical}
 .sub-h:first-of-type{margin-top:4px}
 .word{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:6px}
 @media (max-width:520px){.word{grid-template-columns:minmax(0,1fr)}}
+.fluid{margin-top:12px;border-top:1px solid var(--line);padding-top:4px}
+.flist{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:6px;font-size:14px}
+.flist li{display:grid;grid-template-columns:8.5em minmax(0,1fr);gap:8px;align-items:baseline}
+@media (max-width:520px){.flist li{grid-template-columns:minmax(0,1fr)}}
+.flist b{font-weight:700;color:var(--muted);font-size:13px}
+.tag{display:inline-block;padding:0 8px;border-radius:99px;font-size:12px;font-weight:700;margin-right:6px}
+.tag.force{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.tag.voie{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.tag.defi{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.fl-ai{background:var(--accent-soft);border-radius:8px;padding:10px 12px;margin:8px 0 0;white-space:pre-wrap;font-size:14px}
 details.more{margin-top:8px}
 details.more summary{cursor:pointer;color:var(--accent);font-size:14px}
 aside.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:grid;gap:12px;min-width:0}
@@ -151,6 +161,24 @@ ul.checklist li.bad{color:var(--bad)}
       </section>
 
       <section class="card">
+        <p class="eyebrow">Lecture à voix haute</p>
+        <h2>Fluidité</h2>
+        <p class="hint">Lecture oralisée d'une page. Les cotes et votre commentaire sont analysés ci-dessous et résumés en mots simples dans le commentaire aux parents.</p>
+        <div class="grid2">
+          <label class="field"><span>Texte lu</span><input type="text" id="fl_texte" placeholder="Ex. : page du livre choisi"></label>
+          <label class="field"><span>Mots lus par minute (facultatif, jamais cité aux parents)</span><input type="text" id="fl_mlpm" inputmode="numeric"></label>
+        </div>
+        <div class="rows" id="ent_oral" style="margin-top:8px"></div>
+        <label class="field"><span>Votre analyse de la fluidité (commentaire)</span><textarea id="oral_notes" placeholder="Ex. : lit mot à mot dans les phrases longues, ignore souvent les virgules, autocorrige ses erreurs sur les mots inconnus…"></textarea></label>
+        <div class="fluid">
+          <p class="sub-h">Analyse</p>
+          <ul class="flist" id="fluidSynth"></ul>
+          <div class="btnrow"><button type="button" id="btnFluid" hidden>Analyser mon commentaire avec Claude</button></div>
+          <p class="fl-ai" id="fluidAI" hidden></p>
+        </div>
+      </section>
+
+      <section class="card">
         <p class="eyebrow">Paragraphe 2</p>
         <h2>Entretien de lecture</h2>
         <p class="hint">D'après le modèle d'entretien de lecture (texte narratif) de Véronique D'Anjou et Lucie Béchard.</p>
@@ -163,9 +191,7 @@ ul.checklist li.bad{color:var(--bad)}
         <div class="rows" id="ent_choix"></div>
         <label class="field"><span>Commentaire</span><textarea id="choix_notes" placeholder="Raisons nommées, connaissance de ses goûts…"></textarea></label>
 
-        <p class="sub-h">Lecture oralisée (1 page)</p>
-        <div class="rows" id="ent_oral"></div>
-        <label class="field"><span>Commentaire</span><textarea id="oral_notes" placeholder="Types de méprises, autocorrections…"></textarea></label>
+        <p class="hint">La lecture oralisée se note dans la section « Fluidité » ci-dessus.</p>
 
         <p class="sub-h">Compréhension (1 page)</p>
         <div class="rows" id="ent_comp"></div>
@@ -240,7 +266,7 @@ $("#habitudes").innerHTML=HABITS.map(h=>chk(h[0],h[1])).join("");
 $("#dn").innerHTML=DN.map(d=>row(d[0],d[1],d[2])).join("");
 $("#di").innerHTML=DI.map(d=>row(d[0],d[1],d[2])).join("");
 $("#ent_choix").innerHTML=row("choix_raisons","Pourquoi as-tu choisi ce livre?","Nombre d'éléments mentionnés",COUNT)+row("pointure_raisons","Est-ce qu'il est à ta pointure? Pourquoi?","Nombre d'éléments mentionnés",COUNT);
-$("#ent_oral").innerHTML=row("meprises","Nombre de méprises","",MEPR)+row("decodage","Décodage","Fluidité")+row("groupes","Lire par groupes de mots","Fluidité")+row("ponctuation","Respect de la ponctuation","Fluidité")+row("expressive","Lecture expressive","Fluidité");
+$("#ent_oral").innerHTML=row("fl_vitesse","Vitesse de lecture","",[["lente","Lente"],["adequate","Adéquate"],["rapide","Trop rapide"]])+row("meprises","Nombre de méprises","Précision",MEPR)+row("fl_autocorr","Autocorrection","Précision : corrige ses erreurs")+row("decodage","Décodage","Précision")+row("groupes","Lire par groupes de mots","Phrasé")+row("ponctuation","Respect de la ponctuation","Phrasé")+row("expressive","Lecture expressive","Intonation");
 $("#ent_comp").innerHTML=row("rappel","Rappel de l'histoire","");
 $("#ent_mots").innerHTML=[1,2,3].map(n=>'<div class="word"><input type="text" id="mot'+n+'" placeholder="Mot '+n+'" aria-label="Mot '+n+'">'+seg("def"+n,RATE)+'</div>').join("")+'<p class="hint">Cote : définition plausible.</p>';
 $("#strategies").innerHTML=STRATS.map(s=>chk(s[0],s[1])).join("");
@@ -259,11 +285,11 @@ const EXAMPLE={state:{date:"",annee:"5e année",discipline:"Français – lectur
  dn_comprendre:"+",dn_interpreter:"+/-",dn_reagir:"+",dn_apprecier:"+",dn_notes:"Repère bien les personnages, le lieu et le problème. Résume l'histoire avec les éléments importants. Ses inférences restent parfois en surface.",
  di_comprendre:"+/-",di_idee:"-",di_interpreter:"+/-",di_reagir:"+",di_notes:"Trouve les informations explicites, mais confond souvent un détail et l'idée principale d'un paragraphe. Utilise peu les intertitres.",
  titre:"Le journal d'un dégonflé",auteur:"Jeff Kinney",choix_raisons:"3",pointure_raisons:"2",choix_notes:"Connaît bien ses goûts (humour, bandes dessinées).",
- meprises:"2-3",decodage:"+",groupes:"+/-",ponctuation:"+/-",expressive:"+/-",oral_notes:"Autocorrige ses méprises. Lit encore parfois mot à mot quand la phrase est longue.",
+ fl_texte:"Une page du livre choisi",fl_vitesse:"lente",fl_autocorr:"+",meprises:"2-3",decodage:"+",groupes:"+/-",ponctuation:"+/-",expressive:"+/-",oral_notes:"Autocorrige ses méprises. Lit encore parfois mot à mot quand la phrase est longue.",
  rappel:"+",mot1:"maugréer",def1:"+",mot2:"subterfuge",def2:"+/-",mot3:"pétrifié",def3:"+",s_contexte:true,s_relire:true,s_famille:true,comp_notes:"",
  emotion:"+",indices:"2",interp_notes:"Nomme la gêne du personnage et l'appuie sur deux indices du texte.",notes:""},comment:"",isExample:true};
 
-function applyExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=new Date().toISOString().slice(0,10);setState(d.state);$("#comment").value="";isExample=true;$("#exampleBanner").hidden=false;updateChecks();save()}
+function applyExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=new Date().toISOString().slice(0,10);setState(d.state);$("#comment").value="";isExample=true;$("#exampleBanner").hidden=false;updateChecks();save();setTimeout(renderFluid,0)}
 (function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){}
  if(d&&d.state){setState(d.state);$("#comment").value=d.comment||"";isExample=!!d.isExample;$("#exampleBanner").hidden=!isExample;updateChecksSoon()}else applyExample()})();
 function updateChecksSoon(){setTimeout(updateChecks,0)}
@@ -273,7 +299,7 @@ let resetArmed=null;
 $("#btnReset").onclick=()=>{const b=$("#btnReset");
  if(!resetArmed){b.textContent="Confirmer : tout effacer";resetArmed=setTimeout(()=>{b.textContent="Nouvel élève";resetArmed=null},3500);return}
  clearTimeout(resetArmed);resetArmed=null;b.textContent="Nouvel élève";
- setState({});$("#date").value=new Date().toISOString().slice(0,10);$("#comment").value="";isExample=false;$("#exampleBanner").hidden=true;updateChecks();save();setStatus("Grille vidée.")};
+ setState({});$("#date").value=new Date().toISOString().slice(0,10);$("#comment").value="";isExample=false;$("#exampleBanner").hidden=true;updateChecks();save();renderFluid();setStatus("Grille vidée.")};
 
 /* ---------- aides ---------- */
 const SC={"+":2,"+/-":1,"-":0};
@@ -295,9 +321,28 @@ function depistage(s){
     {k:"reagir",label:"donner son avis sur ses lectures",v:avg([sc(s,"dn_reagir"),sc(s,"di_reagir"),sc(s,"dn_apprecier")])}
   ].map(n=>({...n,c:cat(n.v)})).filter(n=>n.c);
 }
+const VIT={lente:1,adequate:2,rapide:1};
+/* analyse de la fluidité : quatre dimensions + prochaine étape */
+function fluidite(s){
+  const d=[
+    {k:"precision",nom:"Précision",v:avg([meprSc(s.meprises),sc(s,"decodage"),sc(s,"fl_autocorr")]),txt:{force:"lit les mots avec justesse",voie:"quelques erreurs, souvent corrigées",defi:"plusieurs erreurs sur les mots"},etape:"lire plus lentement les mots difficiles et les relire au besoin"},
+    {k:"vitesse",nom:"Vitesse",v:VIT[s.fl_vitesse],txt:{force:"rythme adéquat",voie:s.fl_vitesse==="rapide"?"lit trop vite, au détriment du sens":"rythme encore un peu lent",defi:"lecture très lente, demande beaucoup d'effort"},etape:s.fl_vitesse==="rapide"?"ralentir et faire une pause aux points et aux virgules":"relire plusieurs fois un même court texte pour gagner en aisance"},
+    {k:"phrase",nom:"Phrasé",v:avg([sc(s,"groupes"),sc(s,"ponctuation")]),txt:{force:"lit par groupes de mots et respecte la ponctuation",voie:"lit encore parfois mot à mot ou ignore des signes de ponctuation",defi:"lecture surtout mot à mot"},etape:"lire par groupes de mots en suivant un modèle (lecture en écho)"},
+    {k:"intonation",nom:"Intonation",v:sc(s,"expressive"),txt:{force:"lecture expressive, ton adapté",voie:"intonation à développer",defi:"lecture monotone"},etape:"lire des dialogues en changeant de voix selon les personnages"}
+  ].map(x=>({...x,c:cat(x.v)})).filter(x=>x.c);
+  const rank={defi:0,voie:1,force:2};
+  const weak=d.filter(x=>x.c!=="force").sort((a,b)=>rank[a.c]-rank[b.c]||a.v-b.v)[0];
+  return {dims:d,etape:weak?weak.etape:null};
+}
+const TAG={force:"force",voie:"en voie",defi:"défi"};
+function renderFluid(){const s=getState(),f=fluidite(s);
+  let h=f.dims.map(x=>'<li><b>'+x.nom+'</b><span><span class="tag '+x.c+'">'+TAG[x.c]+'</span>'+x.txt[x.c]+'</span></li>').join("");
+  if(f.etape)h+='<li><b>Prochaine étape</b><span>'+f.etape+'</span></li>';
+  $("#fluidSynth").innerHTML=h||'<li><span class="hint" style="margin:0">Cochez les cotes de lecture à voix haute pour voir l\'analyse.</span></li>';}
+form.addEventListener("input",renderFluid);form.addEventListener("change",renderFluid);
 /* observations de l'entretien (paragraphe 2) */
 function entretien(s){
-  const oral=avg([meprSc(s.meprises),sc(s,"decodage"),sc(s,"groupes"),sc(s,"ponctuation"),sc(s,"expressive")]);
+  const oral=avg([meprSc(s.meprises),sc(s,"decodage"),sc(s,"fl_autocorr"),sc(s,"groupes"),sc(s,"ponctuation"),sc(s,"expressive"),VIT[s.fl_vitesse]]);
   const mots=avg([sc(s,"def1"),sc(s,"def2"),sc(s,"def3")]);
   const emo=avg([sc(s,"emotion"),s.indices?({"1":0.5,"2":1.2,"3":2,"4":2,"5":2,"plus":2})[s.indices]:null]);
   return {oral:cat(oral),rappel:cat(sc(s,"rappel")),mots:cat(mots),emo:cat(emo)};
@@ -336,14 +381,16 @@ function templateComment(s){
   const narrWeak=dep.find(n=>n.k==="narr"&&n.c!=="force");
   const st=STRATS.filter(x=>s[x[0]]).map(x=>STRAT_PARENT[x[0]]).slice(0,2);
   const C={
-    oral:{force:"Votre enfant lit à voix haute avec aisance.",voie:"Sa lecture à voix haute devient de plus en plus fluide.",defi:"Lire à voix haute avec aisance demande encore de la pratique."},
+    oral:{force:"Votre enfant lit à voix haute avec aisance.",voie:s.fl_vitesse==="rapide"?"Votre enfant lit avec entrain; faire une pause aux points et aux virgules l'aidera à mieux comprendre.":"Sa lecture à voix haute devient de plus en plus fluide.",defi:"Lire à voix haute avec aisance demande encore de la pratique."},
     rappel:{force:"Votre enfant raconte bien l'histoire dans ses mots"+(narrWeak?", un beau progrès.":"."),voie:"En racontant l'histoire, votre enfant oublie parfois des moments importants.",defi:"Raconter l'histoire dans ses mots est encore difficile."},
     mots:{force:"Devant un mot nouveau, votre enfant a de bons réflexes"+(st.length?", comme "+joinFr(st)+".":"."),voie:"Devant un mot nouveau, votre enfant commence à "+(st.length?joinFr(st):"chercher des indices")+".",defi:"Trouver le sens d'un mot nouveau est encore difficile."},
     emo:{force:"Votre enfant comprend aussi très bien ce que ressentent les personnages.",voie:"Votre enfant commence à expliquer ce que ressentent les personnages.",defi:"Expliquer ce que ressentent les personnages est plus difficile pour le moment."}
   };
   // d'abord les réussites, puis une prochaine étape
-  ["oral","rappel","mots","emo"].forEach(k=>{if(e[k]==="force")cl.push(C[k].force)});
-  ["oral","rappel","mots","emo"].forEach(k=>{if(e[k]&&e[k]!=="force")cl.push(C[k][e[k]])});
+  // la fluidité est toujours nommée en premier
+  if(e.oral)cl.push(C.oral[e.oral]);
+  ["rappel","mots","emo"].forEach(k=>{if(e[k]==="force")cl.push(C[k].force)});
+  ["rappel","mots","emo"].forEach(k=>{if(e[k]&&e[k]!=="force")cl.push(C[k][e[k]])});
   const p2=cl.slice(0,3);
   HABITS.forEach(h=>{if(s[h[0]])p2.push(h[2])});
   if(p2.length){p2[0]="Lors de nos lectures ensemble, "+low(p2[0]);P.push(p2.join(" "))}
@@ -371,7 +418,13 @@ function describe(s){
   DI.forEach(d=>add(d[1]+" ("+d[2]+")",v(s,d[0])));add("Notes",s.di_notes);
   L.push("\nENTRETIEN DE LECTURE (texte narratif)");
   add("Raisons du choix du livre (nombre d'éléments)",v(s,"choix_raisons"));add("Livre à sa pointure (nombre d'éléments)",v(s,"pointure_raisons"));add("Notes choix",s.choix_notes);
-  add("Méprises sur 1 page",v(s,"meprises"));add("Décodage",v(s,"decodage"));add("Lecture par groupes de mots",v(s,"groupes"));add("Respect de la ponctuation",v(s,"ponctuation"));add("Lecture expressive",v(s,"expressive"));add("Notes lecture oralisée",s.oral_notes);
+  L.push("\nFLUIDITÉ (lecture à voix haute d'une page)");
+  add("Texte lu",s.fl_texte);add("Mots lus par minute (ne jamais citer)",s.fl_mlpm);
+  add("Vitesse",({lente:"lente",adequate:"adéquate",rapide:"trop rapide"})[s.fl_vitesse]);
+  add("Méprises sur 1 page",v(s,"meprises"));add("Autocorrection",v(s,"fl_autocorr"));add("Décodage",v(s,"decodage"));add("Lecture par groupes de mots",v(s,"groupes"));add("Respect de la ponctuation",v(s,"ponctuation"));add("Lecture expressive",v(s,"expressive"));
+  const fa=fluidite(s);if(fa.dims.length)add("Synthèse automatique",fa.dims.map(x=>x.nom+" : "+TAG[x.c]).join(", ")+(fa.etape?" ; prochaine étape : "+fa.etape:""));
+  add("ANALYSE DE LA FLUIDITÉ PAR L'ENSEIGNANTE",s.oral_notes);
+  L.push("\nENTRETIEN DE LECTURE (suite)");
   add("Rappel de l'histoire",v(s,"rappel"));
   [1,2,3].forEach(n=>{if(s["def"+n])add("Mot "+n+(s["mot"+n]?" ("+s["mot"+n]+")":"")+" – définition plausible",s["def"+n])});
   add("Stratégies observées",[...STRATS.filter(x=>s[x[0]]).map(x=>x[1]),s.s_autre].filter(Boolean).join(", "));
@@ -399,7 +452,7 @@ RÈGLES
 
 STRUCTURE (paragraphes séparés par une ligne vide)
 1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif et texte informatif) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
-2. QUAND VOTRE ENFANT LIT (paragraphe distinct, trois phrases au plus) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Réussites d'abord. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
+2. QUAND VOTRE ENFANT LIT (paragraphe distinct, trois phrases au plus) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Pour la lecture à voix haute, analyse les cotes de fluidité ET le commentaire de l'enseignante, puis résume-les en UNE phrase simple pour les parents (ex. « lit à voix haute avec aisance », « lit encore parfois mot à mot », « gagnerait à faire une pause aux points »). Réussites d'abord. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
 3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
 4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
 5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
@@ -456,11 +509,18 @@ async function ask(prompt,label){
   catch(e){if(e&&e.text)ta.value=e.text;else if(!ta.value)ta.value=before;setStatus(ERR[e&&e.code]||"La rédaction n'a pas abouti. Réessayez ou utilisez la version modèle.");if(e&&e.code==="not_granted"){$("#btnAI").hidden=true}}
   finally{btns.forEach(b=>b.disabled=false);$("#btnStop").hidden=true;updateChecks();save()}
 }
+$("#btnFluid").onclick=async()=>{const s=getState(),b=$("#btnFluid"),out=$("#fluidAI");
+  const lines=describe(s).split("\n");const a=lines.findIndex(l=>l.startsWith("FLUIDITÉ")),z=lines.findIndex(l=>l.includes("ENTRETIEN DE LECTURE (suite)"));
+  const data=lines.slice(a,z).join("\n");
+  b.disabled=true;out.hidden=false;out.textContent="Analyse en cours…";
+  try{const r=await sample("Tu es conseillère pédagogique en lecture au primaire au Québec (élève de "+(s.annee||"3e cycle")+"). Analyse la fluidité de lecture à voix haute à partir des cotes et du commentaire de l'enseignante ci-dessous. Réponds en français, de façon brève, avec exactement ces trois lignes :\nPoints forts : …\nÀ travailler : … (la dimension prioritaire parmi précision, vitesse, phrasé, intonation, et pourquoi)\nPhrase pour les parents : … (une phrase simple et bienveillante, sans chiffre, sans « il » ni « elle », qui commence par « votre enfant »)\n\n"+data,{cache:false,onText:({text})=>{out.textContent=text}});out.textContent=r.text.trim()}
+  catch(e){out.textContent=ERR[e&&e.code]||"L'analyse n'a pas abouti. Réessayez."}
+  finally{b.disabled=false}};
 $("#btnStop").onclick=()=>ctl&&ctl.abort();
 $("#btnAI").onclick=()=>ask(buildPrompt(getState()),"Claude rédige le commentaire… (quelques secondes)");
 $("#btnFit").onclick=()=>{const t=$("#comment").value.trim(),n=t.length;
   ask(buildPrompt(getState())+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>1000?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre 900 et 1000 caractères en gardant la structure et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
-if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;setStatus("« Rédiger avec Claude » utilise vos cases et vos notes. « Version modèle » fonctionne sans Claude.");updateChecks()}}).catch(()=>{})}
-updateChecks();
+if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;$("#btnFluid").hidden=false;setStatus("« Rédiger avec Claude » utilise vos cases et vos notes. « Version modèle » fonctionne sans Claude.");updateChecks()}}).catch(()=>{})}
+updateChecks();renderFluid();
 })();
 </script>
