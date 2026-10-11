@@ -86,12 +86,14 @@ textarea{min-height:76px;resize:vertical}
 .class-tools{display:flex;flex-wrap:wrap;gap:10px}
 .class-tools .field{min-width:180px}
 .tablewrap{overflow:auto;max-height:340px;border:1px solid var(--line);border-radius:8px}
-#classTable{border-collapse:collapse;width:100%;font-size:14px;min-width:620px}
+#classTable{border-collapse:collapse;width:100%;font-size:14px;min-width:680px}
 #classTable th{position:sticky;top:0;background:var(--sheet);text-align:left;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);z-index:1}
 #classTable td{padding:6px 10px;border-bottom:1px solid var(--line)}
 #classTable tbody tr{cursor:pointer}
 #classTable tbody tr:hover{background:var(--paper)}
 #classTable tr.current{background:var(--accent-soft)}
+#classTable tr.grp th{position:static;background:var(--paper);color:var(--accent);font-family:var(--f-display);font-size:14px;letter-spacing:0;text-transform:none;padding:8px 10px;cursor:default}
+#classTable td.no{font-variant-numeric:tabular-nums;color:var(--muted);width:3.5em}
 #classTable tr.current .namebtn{font-weight:700}
 #classTable td.lv{font-family:var(--f-display);font-weight:700}
 #classTable td.empty{color:var(--muted);padding:16px 10px;cursor:default}
@@ -155,13 +157,14 @@ ul.checklist li.bad{color:var(--bad)}
           <option value="entretien">Entretien de lecture à faire</option>
           <option value="commentaire">Commentaire à rédiger</option>
         </select></label>
+        <label class="field"><span>Groupe</span><select id="groupe"><option value="">5e et 6e année</option><option value="5">5e année seulement</option><option value="6">6e année seulement</option></select></label>
         <label class="field"><span>Rechercher</span><input type="text" id="recherche" placeholder="Prénom"></label>
       </div>
     </div>
-    <div class="tablewrap"><table id="classTable"><thead><tr><th>Élève</th><th>Niveau</th><th>Narratif</th><th>Informatif</th><th>Fluidité</th><th>Entretien</th><th>Commentaire</th></tr></thead><tbody></tbody></table></div>
+    <div class="tablewrap"><table id="classTable"><thead><tr><th>No</th><th>Élève</th><th>Niveau</th><th>Narratif</th><th>Informatif</th><th>Fluidité</th><th>Entretien</th><th>Commentaire</th></tr></thead><tbody></tbody></table></div>
     <div class="class-foot">
       <details id="addBox"><summary>Ajouter des élèves</summary>
-        <label class="field"><span>Un prénom par ligne. Vous pouvez coller toute votre liste.</span><textarea id="newNames" placeholder="Alex&#10;Samuel&#10;Léa"></textarea></label>
+        <label class="field"><span>Un élève par ligne : numéro puis prénom. Le chiffre avant le point est l'ordre dans la liste, celui après le point est l'année (5 ou 6).</span><textarea id="newNames" placeholder="1.5 Alex&#10;2.5 Samuel&#10;1.6 Léa"></textarea></label>
         <button type="button" class="primary" id="btnAdd">Ajouter à la classe</button>
       </details>
       <div class="btnrow"><button type="button" id="btnNext">Élève suivant à compléter →</button><button type="button" id="btnDelete">Retirer cet élève</button></div>
@@ -178,6 +181,7 @@ ul.checklist li.bad{color:var(--bad)}
         <h2>Identification et niveau</h2>
         <p class="hint">Le prénom n'est jamais envoyé à Claude pour la rédaction.</p>
         <div class="grid2">
+          <label class="field"><span>Numéro (ex. 1.5 = 1er de la liste, 5e année)</span><input type="text" id="numero" inputmode="decimal" placeholder="1.5"></label>
           <label class="field"><span>Prénom</span><input type="text" id="prenom"></label>
           <label class="field"><span>Date</span><input type="date" id="date"></label>
           <label class="field"><span>Année</span><select id="annee"><option>5e année</option><option>6e année</option></select></label>
@@ -358,23 +362,36 @@ const SECTIONS=[
   ["entretien","Entretien","sec_ent",s=>has(s,["choix_raisons","pointure_raisons","rappel","def1","def2","def3","emotion","indices"])||STRATS.some(x=>s[x[0]])],
   ["commentaire","Commentaire","comment",(s,r)=>txt(r.comment)]];
 const isDone=(r,key)=>{const sec=SECTIONS.find(x=>x[0]===key);return sec[3](r.state||{},r)};
-const sortedIds=()=>Object.keys(students).sort((a,b)=>(students[a].nom||"").localeCompare(students[b].nom||"","fr"));
-function visibleIds(){const f=$("#filtre").value,q=$("#recherche").value.trim().toLowerCase();
-  return sortedIds().filter(id=>(!f||!isDone(students[id],f))&&(!q||(students[id].nom||"").toLowerCase().includes(q)))}
+/* numéro « ordre.année » : 1.5 = 1er de la liste, 5e année */
+function parseNo(t){const m=String(t||"").match(/(\d+)\s*[.,]\s*([56])(?!\d)/);return m?{ordre:+m[1],annee:+m[2],code:m[1]+"."+m[2],raw:m[0]}:null}
+function parseEntry(line){const n=parseNo(line);let nom=line;if(n)nom=line.replace(n.raw,"");nom=nom.replace(/^[\s\-–:.)]+|[\s\-–:(]+$/g,"").trim();return {nom:nom||line.trim(),no:n}}
+function gradeOf(r){const st=r.state||{},n=parseNo(st.numero);if(n)return n.annee;const m=String(st.annee||"").match(/^([56])/);return m?+m[1]:null}
+function ordreOf(r){const n=parseNo((r.state||{}).numero);return n?n.ordre:Infinity}
+const sortedIds=()=>Object.keys(students).sort((a,b)=>{const A=students[a],B=students[b];
+  return (gradeOf(A)||9)-(gradeOf(B)||9)||ordreOf(A)-ordreOf(B)||(A.nom||"").localeCompare(B.nom||"","fr")});
+function visibleIds(){const f=$("#filtre").value,g=$("#groupe").value,q=$("#recherche").value.trim().toLowerCase();
+  return sortedIds().filter(id=>(!f||!isDone(students[id],f))&&(!g||String(gradeOf(students[id]))===g)&&(!q||(students[id].nom||"").toLowerCase().includes(q)))}
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c])}
 function renderClass(){
   const all=sortedIds(),vis=visibleIds(),f=$("#filtre").value;
   $("#classTitle").textContent=all.length?(all.length+" élève"+(all.length>1?"s":"")+(f?" · "+vis.length+" à compléter":"")):"Aucun élève";
   const tb=$("#classTable tbody");
-  if(!all.length){tb.innerHTML='<tr><td colspan="7" class="empty">Ajoutez vos élèves avec « Ajouter des élèves » ci-dessous. Chaque profil est ensuite enregistré automatiquement.</td></tr>';$("#addBox").open=true;return}
-  if(!vis.length){tb.innerHTML='<tr><td colspan="7" class="empty">'+(f?"Tous les élèves ont cette section remplie.":"Aucun élève ne correspond à la recherche.")+'</td></tr>';return}
-  tb.innerHTML=vis.map(id=>{const r=students[id];
-    return '<tr data-id="'+id+'"'+(id===currentId?' class="current" aria-current="true"':'')+'><td><button type="button" class="namebtn">'+esc(r.nom||"Sans nom")+'</button></td><td class="lv">'+((r.state&&r.state.niveau)||"—")+'</td>'+
+  if(!all.length){tb.innerHTML='<tr><td colspan="8" class="empty">Ajoutez vos élèves avec « Ajouter des élèves » ci-dessous. Chaque profil est ensuite enregistré automatiquement.</td></tr>';$("#addBox").open=true;return}
+  if(!vis.length){tb.innerHTML='<tr><td colspan="8" class="empty">'+(f?"Tous les élèves ont cette section remplie.":"Aucun élève ne correspond à la recherche.")+'</td></tr>';return}
+  let grp;
+  tb.innerHTML=vis.map(id=>{const r=students[id],g=gradeOf(r);
+    let head="";if(g!==grp){grp=g;const n=vis.filter(x=>gradeOf(students[x])===g).length;head='<tr class="grp"><th colspan="8">'+(g?g+"e année":"Année non indiquée")+' · '+n+' élève'+(n>1?"s":"")+'</th></tr>'}
+    const no=parseNo((r.state||{}).numero);
+    return head+'<tr data-id="'+id+'"'+(id===currentId?' class="current" aria-current="true"':'')+'><td class="no">'+(no?no.code:"—")+'</td><td><button type="button" class="namebtn">'+esc(r.nom||"Sans nom")+'</button></td><td class="lv">'+((r.state&&r.state.niveau)||"—")+'</td>'+
     SECTIONS.slice(1).map(sec=>{const d=isDone(r,sec[0]);return '<td><span class="dot '+(d?"ok":"todo")+(sec[0]===f?" focus":"")+'">'+(d?"✓":"à faire")+'</span></td>'}).join("")+'</tr>'}).join("");
 }
 $("#classTable").addEventListener("click",e=>{const tr=e.target.closest("tr[data-id]");if(tr)openStudent(tr.dataset.id,true)});
 $("#filtre").addEventListener("change",()=>{try{localStorage.setItem("grilleLecture.filtre",$("#filtre").value)}catch(e){}renderClass()});
 $("#recherche").addEventListener("input",renderClass);
+$("#groupe").addEventListener("change",renderClass);
+/* le numéro fixe l'année; changer l'année met le numéro à jour */
+$("#numero").addEventListener("input",()=>{const n=parseNo($("#numero").value);if(n)$("#annee").value=n.annee+"e année"});
+$("#annee").addEventListener("change",()=>{const n=parseNo($("#numero").value),g=$("#annee").value.charAt(0);if(n&&String(n.annee)!==g)$("#numero").value=n.ordre+"."+g});
 
 function openStudent(id,scroll){
   const r=students[id];if(!r)return;flush();
@@ -388,11 +405,11 @@ function showExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=
 function showInitial(){if(currentId&&students[currentId])openStudent(currentId,false);else{const ids=sortedIds();if(ids.length)openStudent(ids[0],false);else showExample()}}
 
 $("#btnAdd").onclick=()=>{
-  const names=$("#newNames").value.split(/\n|;/).map(t=>t.trim()).filter(Boolean);if(!names.length)return;
+  const names=$("#newNames").value.split(/\n|;/).map(t=>t.trim()).filter(Boolean).map(parseEntry);if(!names.length)return;
   const annee=$("#annee").value;let first=null;
-  names.forEach(n=>{const id=newId();students[id]={nom:n,state:{prenom:n,annee,date:new Date().toISOString().slice(0,10)},comment:"",updatedAt:Date.now()};first=first||id;persist(id,true)});
+  names.forEach(e=>{const id=newId();students[id]={nom:e.nom,state:{prenom:e.nom,numero:e.no?e.no.code:"",annee:e.no?e.no.annee+"e année":annee,date:new Date().toISOString().slice(0,10)},comment:"",updatedAt:Date.now()};first=first||id;persist(id,true)});
   $("#newNames").value="";$("#addBox").open=false;
-  if(!currentId)openStudent(first,false);else renderClass();
+  if(!currentId)openStudent(sortedIds()[0],false);else renderClass();
   setStatus(names.length+" élève"+(names.length>1?"s ajoutés":" ajouté")+" à la classe.")};
 $("#btnNext").onclick=()=>{
   const f=$("#filtre").value;const ids=sortedIds().filter(id=>f?!isDone(students[id],f):SECTIONS.some(sec=>!isDone(students[id],sec[0])));
@@ -582,6 +599,7 @@ RÈGLES
 - Niveau A : notions « solides ». Niveau B : notions « bien comprises ». Autres : « en voie d'acquisition », « fragile », « représente un défi ».
 - Nommer au maximum 2 ou 3 éléments par catégorie (forces, fragilités, défis), regroupés par grands domaines. Chaque élément n'apparaît qu'une seule fois, sans contradiction.
 - Parler SEULEMENT de l'élève et de sa capacité à lire. Ne jamais parler de coopération, de travail d'équipe, de collaboration, des pairs ou des camarades.
+- Juger les observations selon les attentes de l'année de l'élève (${s.annee||"3e cycle"}) : une même lecture n'a pas le même sens en 5e et en 6e année.
 - Ne jamais mentionner les sorties de classe, les distractions ni les comportements négatifs de façon directe.
 
 STRUCTURE (paragraphes séparés par une ligne vide)
@@ -647,7 +665,7 @@ $("#btnFluid").onclick=async()=>{const s=getState(),b=$("#btnFluid"),out=$("#flu
   const lines=describe(s).split("\n");const a=lines.findIndex(l=>l.startsWith("FLUIDITÉ")),z=lines.findIndex(l=>l.includes("ENTRETIEN DE LECTURE (suite)"));
   const data=lines.slice(a,z).join("\n");
   b.disabled=true;out.hidden=false;out.textContent="Analyse en cours…";
-  try{const r=await sample("Tu es conseillère pédagogique en lecture au primaire au Québec (élève de "+(s.annee||"3e cycle")+"). Analyse la fluidité de lecture à voix haute à partir des cotes et du commentaire de l'enseignante ci-dessous. Réponds en français, de façon brève, avec exactement ces trois lignes :\nPoints forts : …\nÀ travailler : … (la dimension prioritaire parmi précision, vitesse, phrasé, intonation, et pourquoi)\nPhrase pour les parents : … (une phrase simple et bienveillante, sans chiffre, sans « il » ni « elle », qui commence par « votre enfant »)\n\n"+data,{cache:false,onText:({text})=>{out.textContent=text}});out.textContent=r.text.trim()}
+  try{const r=await sample("Tu es conseillère pédagogique en lecture au primaire au Québec (élève de "+(s.annee||"3e cycle")+"). Analyse la fluidité de lecture à voix haute à partir des cotes et du commentaire de l'enseignante ci-dessous, en tenant compte des attentes de cette année scolaire. Réponds en français, de façon brève, avec exactement ces trois lignes :\nPoints forts : …\nÀ travailler : … (la dimension prioritaire parmi précision, vitesse, phrasé, intonation, et pourquoi)\nPhrase pour les parents : … (une phrase simple et bienveillante, sans chiffre, sans « il » ni « elle », qui commence par « votre enfant »)\n\n"+data,{cache:false,onText:({text})=>{out.textContent=text}});out.textContent=r.text.trim()}
   catch(e){out.textContent=ERR[e&&e.code]||"L'analyse n'a pas abouti. Réessayez."}
   finally{b.disabled=false}};
 $("#btnStop").onclick=()=>ctl&&ctl.abort();
