@@ -131,6 +131,8 @@ ul.checklist li::before{content:"✓";color:var(--good);font-weight:700;width:1e
 ul.checklist li.bad::before{content:"✗";color:var(--bad)}
 ul.checklist li.bad{color:var(--bad)}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.quest{margin-top:16px;border-top:1px solid var(--line);padding-top:4px}
+.qlist{margin:0 0 6px;padding-left:18px;display:grid;gap:4px;font-size:14px}
 .histbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin:0 0 12px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
 .histbox select{width:auto;flex:1 1 200px}
 .lenset{display:flex;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted);align-items:center}
@@ -223,6 +225,16 @@ ul.checklist li.bad{color:var(--bad)}
         <p class="hint">− : défi · ± : en voie d'acquisition ou fragile · + : force</p>
         <div class="rows" id="di"></div>
         <label class="field"><span>Vos observations (texte libre)</span><textarea id="di_notes" placeholder="Ex. : trouve les informations explicites; a besoin d'aide pour l'idée principale d'un paragraphe…"></textarea></label>
+        <div class="quest">
+          <p class="sub-h">Questionnaire de compréhension</p>
+          <p class="hint" id="qTitre"></p>
+          <p class="hint">✓ réussie · ½ en partie · ✗ non réussie. L'épreuve suit l'année de l'élève (numéro .5 ou .6).</p>
+          <div class="rows" id="qRows"></div>
+          <label class="field"><span>Commentaire sur le questionnaire</span><textarea id="q_notes" placeholder="Ex. : donne l'intention de l'auteur au lieu de l'idée principale; a bien justifié la question 10…"></textarea></label>
+          <p class="sub-h">Analyse par processus</p>
+          <div id="qAnalyse"></div>
+          <div class="btnrow" style="margin-top:8px"><button type="button" id="btnApplyQ">Remplir les cotes ci-dessus à partir du questionnaire</button></div>
+        </div>
       </section>
 
       <section class="card" id="sec_fl">
@@ -386,7 +398,7 @@ const txt=v=>!!(v||"").trim();
 const SECTIONS=[
   ["niveau","Niveau","sec_eleve",s=>!!s.niveau],
   ["narratif","Narratif","sec_dn",s=>has(s,DN.map(d=>d[0]))||txt(s.dn_notes)],
-  ["informatif","Informatif","sec_di",s=>has(s,DI.map(d=>d[0]))||txt(s.di_notes)],
+  ["informatif","Informatif","sec_di",s=>has(s,DI.map(d=>d[0]))||txt(s.di_notes)||hasQ(s)],
   ["fluidite","Fluidité","sec_fl",s=>has(s,["fl_vitesse","meprises","fl_autocorr","decodage","groupes","ponctuation","expressive"])||txt(s.oral_notes)],
   ["entretien","Entretien","sec_ent",s=>has(s,["choix_raisons","pointure_raisons","rappel","def1","def2","def3","emotion","indices"])||STRATS.some(x=>s[x[0]])],
   ["commentaire","Commentaire","comment",(s,r)=>txt(r.comment)]];
@@ -442,11 +454,11 @@ function openStudent(id,scroll){
   const r=students[id];if(!r)return;flush();
   currentId=id;isExample=false;$("#exampleBanner").hidden=true;
   setState(r.state||{});$("#prenom").value=r.nom||"";$("#comment").value=r.comment||"";
-  $("#curName").textContent=r.nom||"";updateChecks();renderFluid();renderClass();renderHist();localSaveAll();
+  $("#curName").textContent=r.nom||"";updateChecks();renderFluid();renderQuest();renderClass();renderHist();localSaveAll();
   setStatus("Profil de "+(r.nom||"l'élève")+" ouvert.");
   const f=$("#filtre").value;if(scroll){const sec=SECTIONS.find(x=>x[0]===f);const el=document.getElementById(sec?sec[2]:"sec_eleve");if(el)el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})}
 }
-function showExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=new Date().toISOString().slice(0,10);currentId=null;setState(d.state);$("#comment").value="";isExample=true;$("#exampleBanner").hidden=false;$("#curName").textContent="exemple";updateChecks();renderFluid();renderClass()}
+function showExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=new Date().toISOString().slice(0,10);currentId=null;setState(d.state);$("#comment").value="";isExample=true;$("#exampleBanner").hidden=false;$("#curName").textContent="exemple";updateChecks();renderFluid();renderQuest();renderClass()}
 function showInitial(){if(currentId&&students[currentId])openStudent(currentId,false);else{const ids=sortedIds();if(ids.length)openStudent(ids[0],false);else showExample()}}
 
 function addList(text){
@@ -521,12 +533,126 @@ const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
 const low=t=>t.charAt(0).toLowerCase()+t.slice(1);
 const levelPhrase=k=>(LEVELS.find(l=>l[0]===k)||[])[1];
 
+/* ---------- questionnaire informatif (épreuves de compréhension Godbout, Turcotte et Giguère) ---------- */
+const QITEMS=[
+ ["q_1","1","reperage","Repérage – information en début de texte"],
+ ["q_2","2","reperage","Repérage – information en fin de texte"],
+ ["q_3","3","idee","Idée principale explicite (à repérer)"],
+ ["q_4","4","idee","Idée principale implicite (à formuler)"],
+ ["q_5a","5a","anaph","Mot de substitution – pronom sujet (plus facile)"],
+ ["q_5b","5b","anaph","Mot de substitution – référent éloigné (plus difficile)"],
+ ["q_6","6","causale","Inférence causale – informations voisines"],
+ ["q_7","7","causale","Inférence causale – informations éloignées"],
+ ["q_8a","8a","lexicale","Mot inconnu – synonyme dans le texte"],
+ ["q_8b","8b","lexicale","Mot inconnu – contexte ou morphologie"],
+ ["q_9","9","pragma","Inférence pragmatique – réponse personnelle plausible"],
+ ["q_10","10","logique","Inférence logique – déduire à partir du texte"],
+ ["q_11","11","structure","Structure du texte – causes et effets"]];
+const QTEST={
+ 5:{titre:"La carie dentaire (5e année)",q:{
+  q_1:["Combien de bactéries avons-nous dans la bouche?","des milliers, plusieurs milliers (refuser 1 000)"],
+  q_2:["Qu'est-ce qu'une couronne dentaire?","un chapeau qui recouvre la dent, un matériel qui reconstitue la dent"],
+  q_3:["Idée principale de « Comment se forment les caries? »","bactéries + sucres → acide → carie (refuser l'intention seule)"],
+  q_4:["Idée principale de « En prévention »","hygiène (brossage, dentiste) ET alimentation (éviter le sucre)"],
+  q_5a:["« Elle est placée par-dessus la portion saine… »","la couronne (le chapeau : accepté)"],
+  q_5b:["« Cependant d'autres participent à la formation des caries »","les bactéries (petits microbes)"],
+  q_6:["Pourquoi dit-on que la carie est sournoise?","se forme en silence, sans douleur, invisible"],
+  q_7:["Pourquoi fromage, noix, graines et lait réduisent-ils l'acide?","riches en calcium, vitamine D, protéines; peu sucrés"],
+  q_8a:["Sens de « cavité »","un trou, le creux de la dent"],
+  q_8b:["Sens de « facette »","petite face, côté, surface de la dent"],
+  q_9:["Pourquoi les caries surtout chez les enfants et les adolescents?","plus de sucre, brossage ou soie dentaire moins bien faits"],
+  q_10:["Peu de sucre : qu'arrive-t-il aux mauvaises bactéries?","ne se multiplient pas, diminuent (refuser « pas de carie »)"],
+  q_11:["Trois causes et trois effets de la carie","causes : sucres, bactéries, plaque, mauvais brossage… effets : douleur, plombage, dent détruite…"]}},
+ 6:{titre:"La pollution spatiale (6e année)",q:{
+  q_1:["Combien compte-t-on de satellites actifs?","trois milliers, 3 000 (refuser « des milliers »)"],
+  q_2:["Ce qu'un pays n'a pas le droit de faire dans l'espace","recueillir les objets appartenant à d'autres pays"],
+  q_3:["Idée principale de « Les débris spatiaux »","2 aspects sur 3 : nombreux débris, formes variées, introduits par l'humain"],
+  q_4:["Idée principale de « Des déchets à l'infini »","les collisions font augmenter sans cesse le nombre de débris"],
+  q_5a:["« ils estiment à des millions… »","des chercheurs (américains)"],
+  q_5b:["« On les appelle aussi des sondes »","les véhicules spatiaux (sans équipage)"],
+  q_6:["Pourquoi retrouve-t-on des outils en orbite?","les astronautes échappent des outils; vis, boulons qui se détachent"],
+  q_7:["Dans quel but change-t-on la trajectoire des engins?","éviter les collisions avec les débris, protéger les astronautes"],
+  q_8a:["Sens de « scaphandre »","combinaison spatiale, habit d'astronaute"],
+  q_8b:["Sens de « engendre »","crée, produit, cause, provoque, entraine"],
+  q_9:["Quels instruments dans le laboratoire de la station?","toute réponse plausible : télescopes, microscopes, ordinateurs…"],
+  q_10:["Plus gros ou plus petits débris : lesquels sont plus dangereux?","tout choix justifié de façon logique"],
+  q_11:["Trois causes et trois effets des débris spatiaux","causes : missions, outils échappés, collisions… effets : danger, bris, pollution…"]}}};
+const QPROC={
+ reperage:["Repérage","trouver une information écrite dans le texte","Habileté fondamentale pour la compréhension; ce sont les questions les plus faciles."],
+ idee:["Idée principale","trouver l'idée principale d'un paragraphe","Distinguer l'intention de l'auteur (de quoi on parle) de l'idée principale (ce qu'on en dit d'important); essentiel pour résumer."],
+ anaph:["Inférence anaphorique","comprendre les mots qui en remplacent d'autres","Relier les mots de substitution à ce qu'ils remplacent pour comprendre les liens entre les phrases."],
+ causale:["Inférence causale","faire les liens de cause qui ne sont pas écrits","Relier des informations sans marqueur (car, parce que) pour construire la cohérence du texte."],
+ lexicale:["Inférence lexicale","trouver le sens d'un mot nouveau","Saisir le sens d'un mot inconnu à l'aide d'un synonyme, du contexte ou de la morphologie."],
+ pragma:["Inférence pragmatique","donner une réponse personnelle appuyée sur le texte","Se détacher du littéral, saisir le sens global et y réagir."],
+ logique:["Inférence logique","déduire à partir du texte","Déduire un résultat en reliant le texte et ses connaissances."],
+ structure:["Structure du texte","organiser les causes et les effets","Organiser l'information selon la structure cause-effet."]};
+const QV={r:2,p:1,n:0};
+const gradeNum=s=>(String(s.annee||"").charAt(0)==="6")?6:5;
+const hasQ=s=>QITEMS.some(q=>s[q[0]]);
+function qScore(s,id){const v=s[id];if(!(v in QV))return null;
+  // en 5e, formuler l'idée principale implicite n'est pas attendu sans accompagnement
+  if(id==="q_4"&&gradeNum(s)===5&&v==="n")return 1;return QV[v]}
+function qProc(s,p){return avg(QITEMS.filter(q=>q[2]===p).map(q=>qScore(s,q[0])))}
+const ok=v=>v!=null&&v>=1.5, weakQ=v=>v!=null&&v<0.75;
+/* constats sur le questionnaire et croisement avec les autres résultats */
+function qAnalyse(s){
+  const P=k=>qProc(s,k),C=[],X=[];if(!hasQ(s))return {C,X};
+  const R=k=>s[k]==="r",N=k=>s[k]==="n";
+  if(weakQ(P("reperage")))C.push("Le repérage d'une information écrite est fragile. C'est la base de la compréhension : à travailler en premier.");
+  if(N("q_3")&&N("q_4"))C.push("L'idée principale n'est trouvée ni lorsqu'elle est écrite ni lorsqu'elle est à formuler : confusion probable entre l'intention de l'auteur et l'idée principale.");
+  else if(R("q_3")&&N("q_4"))C.push(gradeNum(s)===5?"Repère l'idée principale écrite; la formuler (implicite) n'est pas encore attendu sans accompagnement en 5e.":"Repère l'idée principale écrite, mais ne la formule pas encore quand elle est implicite.");
+  if(R("q_5a")&&N("q_5b"))C.push("Comprend les pronoms simples, mais pas encore les mots de substitution dont le référent est éloigné.");
+  if(R("q_6")&&N("q_7"))C.push("Fait les liens de cause entre des informations voisines, mais pas encore entre des informations éloignées.");
+  if(R("q_8a")&&N("q_8b"))C.push("Utilise un synonyme présent dans le texte, mais déduit encore difficilement le sens d'un mot par le contexte ou la morphologie.");
+  const inf=avg([P("causale"),P("logique"),P("pragma")]);
+  if(ok(P("reperage"))&&weakQ(inf))C.push("Comprend bien ce qui est écrit, mais va encore peu au-delà du texte (inférences).");
+  if(ok(P("reperage"))&&ok(inf)&&ok(P("idee")))C.push("Compréhension solide, autant littérale qu'inférentielle.");
+  if(weakQ(P("structure")))C.push("Organiser les causes et les effets du texte est difficile.");
+  // croisement
+  const mots=avg([sc(s,"def1"),sc(s,"def2"),sc(s,"def3")]),lex=P("lexicale");
+  if(weakQ(lex)&&weakQ(mots))X.push("Sens des mots nouveaux : difficile au questionnaire ET lors de l'entretien de lecture (difficulté qui revient).");
+  else if(weakQ(lex)&&ok(mots))X.push("Définit bien les mots à l'oral (entretien), mais moins à l'écrit (questionnaire).");
+  else if(ok(lex)&&weakQ(mots))X.push("Trouve le sens des mots à l'écrit (questionnaire), mais moins à l'oral (entretien).");
+  const interpAutres=avg([sc(s,"dn_interpreter"),sc(s,"emotion")]);
+  if(weakQ(inf)&&weakQ(interpAutres))X.push("Inférences : fragiles dans le texte informatif ET dans l'histoire (entretien, dépistage narratif).");
+  else if(weakQ(inf)&&ok(interpAutres))X.push("Fait des inférences dans les histoires, mais moins dans les textes documentaires.");
+  const oralPrec=avg([meprSc(s.meprises),sc(s,"decodage")]);
+  if(weakQ(P("reperage"))&&weakQ(oralPrec))X.push("Repérage fragile ET lecture à voix haute peu précise : le décodage nuit peut-être à la compréhension.");
+  const compNarr=avg([sc(s,"dn_comprendre"),sc(s,"rappel")]);
+  if(weakQ(P("reperage"))&&weakQ(compNarr))X.push("Compréhension de base fragile dans les deux types de textes (documentaire et histoire).");
+  else if(weakQ(avg([P("reperage"),P("idee")]))&&ok(compNarr))X.push("Comprend bien les histoires, mais moins les textes documentaires.");
+  if(weakQ(P("idee"))&&s.di_idee==="-")X.push("Idée principale : la difficulté se confirme au questionnaire et dans vos observations du dépistage.");
+  return {C,X};
+}
+function renderQuest(){const s=getState(),g=gradeNum(s),T=QTEST[g];
+  $("#qTitre").textContent="Épreuve : "+T.titre;
+  QITEMS.forEach(q=>{const t=T.q[q[0]];const el=document.querySelector('[data-qtxt="'+q[0]+'"]');if(el)el.innerHTML='<b>'+esc(t[0])+'</b><small>'+esc(q[3])+' · Accepter : '+esc(t[1])+'</small>'});
+  const box=$("#qAnalyse");if(!hasQ(s)){box.innerHTML='<p class="hint" style="margin:0">Cochez les questions réussies ou non pour voir l\'analyse par processus.</p>';return}
+  const rows=Object.keys(QPROC).map(k=>{const items=QITEMS.filter(q=>q[2]===k),done=items.filter(q=>s[q[0]]);if(!done.length)return "";
+    const v=qProc(s,k),c=cat(v),pts=done.reduce((a,q)=>a+(QV[s[q[0]]]||0),0)/2;
+    return '<li><b>'+QPROC[k][0]+'</b><span><span class="tag '+c+'">'+TAG[c]+'</span>'+pts+' / '+done.length+' · '+esc(QPROC[k][2])+'</span></li>'}).join("");
+  const A=qAnalyse(s);
+  box.innerHTML='<ul class="flist">'+rows+'</ul>'+(A.C.length?'<p class="sub-h">Constats</p><ul class="qlist">'+A.C.map(t=>'<li>'+esc(t)+'</li>').join("")+'</ul>':'')+
+    (A.X.length?'<p class="sub-h">Croisement avec les autres résultats</p><ul class="qlist">'+A.X.map(t=>'<li>'+esc(t)+'</li>').join("")+'</ul>':'');
+}
+/* remplit les cotes du dépistage informatif à partir du questionnaire */
+function qToCote(v){return v==null?null:v>=1.5?"+":v>=0.75?"+/-":"-"}
+function applyQ(){const s=getState();if(!hasQ(s))return;
+  const m={di_comprendre:avg([qProc(s,"reperage"),qProc(s,"anaph"),qProc(s,"structure")]),di_idee:qProc(s,"idee"),di_interpreter:avg([qProc(s,"causale"),qProc(s,"lexicale"),qProc(s,"logique")]),di_reagir:qProc(s,"pragma")};
+  Object.entries(m).forEach(([k,v])=>{const c=qToCote(v);if(!c)return;const el=document.querySelector('input[name="'+k+'"][value="'+c+'"]');if(el)el.checked=true});
+  save();renderQuest();setStatus("Cotes du dépistage informatif remplies à partir du questionnaire. Vous pouvez les ajuster.")}
+$("#qRows").innerHTML=QITEMS.map(q=>'<div class="row"><div class="lbl" data-qtxt="'+q[0]+'"></div>'+seg(q[0],[["r","✓"],["p","½"],["n","✗"]])+'</div>').join("");
+
 /* notions du dépistage (paragraphe 1), en mots de parents */
 function depistage(s){
   return [
     {k:"narr",label:"comprendre les histoires",v:avg([sc(s,"dn_comprendre")])},
-    {k:"info",label:"trouver l'information importante dans un texte documentaire",v:avg([sc(s,"di_comprendre"),sc(s,"di_idee")])},
-    {k:"interp",label:"saisir ce qui n'est pas écrit directement",v:avg([sc(s,"dn_interpreter"),sc(s,"di_interpreter")])},
+    ...(hasQ(s)?[
+      {k:"q_rep",label:"trouver une information écrite dans un texte documentaire",v:avg([sc(s,"di_comprendre"),qProc(s,"reperage"),qProc(s,"anaph")])},
+      {k:"q_idee",label:"trouver l'idée principale d'un texte documentaire",v:avg([sc(s,"di_idee"),qProc(s,"idee")])},
+      {k:"q_struct",label:"organiser les causes et les effets d'un texte",v:qProc(s,"structure")}
+    ]:[{k:"info",label:"trouver l'information importante dans un texte documentaire",v:avg([sc(s,"di_comprendre"),sc(s,"di_idee")])}]),
+    {k:"interp",label:"saisir ce qui n'est pas écrit directement",v:avg([sc(s,"dn_interpreter"),sc(s,"di_interpreter"),qProc(s,"causale"),qProc(s,"logique"),qProc(s,"pragma")])},
     {k:"reagir",label:"donner son avis sur ses lectures",v:avg([sc(s,"dn_reagir"),sc(s,"di_reagir"),sc(s,"dn_apprecier")])}
   ].map(n=>({...n,c:cat(n.v)})).filter(n=>n.c);
 }
@@ -548,11 +674,12 @@ function renderFluid(){const s=getState(),f=fluidite(s);
   let h=f.dims.map(x=>'<li><b>'+x.nom+'</b><span><span class="tag '+x.c+'">'+TAG[x.c]+'</span>'+x.txt[x.c]+'</span></li>').join("");
   if(f.etape)h+='<li><b>Prochaine étape</b><span>'+f.etape+'</span></li>';
   $("#fluidSynth").innerHTML=h||'<li><span class="hint" style="margin:0">Cochez les cotes de lecture à voix haute pour voir l\'analyse.</span></li>';}
-form.addEventListener("input",renderFluid);form.addEventListener("change",renderFluid);
+form.addEventListener("input",renderFluid);form.addEventListener("input",renderQuest);form.addEventListener("change",renderQuest);
+$("#btnApplyQ").onclick=applyQ;form.addEventListener("change",renderFluid);
 /* observations de l'entretien (paragraphe 2) */
 function entretien(s){
   const oral=avg([meprSc(s.meprises),sc(s,"decodage"),sc(s,"fl_autocorr"),sc(s,"groupes"),sc(s,"ponctuation"),sc(s,"expressive"),VIT[s.fl_vitesse]]);
-  const mots=avg([sc(s,"def1"),sc(s,"def2"),sc(s,"def3")]);
+  const mots=avg([sc(s,"def1"),sc(s,"def2"),sc(s,"def3"),qProc(s,"lexicale")]);
   const emo=avg([sc(s,"emotion"),s.indices?({"1":0.5,"2":1.2,"3":2,"4":2,"5":2,"plus":2})[s.indices]:null]);
   return {oral:cat(oral),rappel:cat(sc(s,"rappel")),mots:cat(mots),emo:cat(emo)};
 }
@@ -563,6 +690,9 @@ const OBJ={
   reagir:["l'expression de son avis sur ses lectures","parler ensemble de ses lectures et lui demander ce qui lui a plu"],
   oral:["la lecture à voix haute","l'écouter lire à voix haute quelques minutes par jour"],
   rappel:["la capacité à raconter une histoire dans l'ordre","lui demander de vous raconter le chapitre lu"],
+  q_rep:["la recherche d'informations précises dans un texte","lire ensemble un court article et lui poser une question dont la réponse se trouve dans le texte"],
+  q_idee:["la recherche de l'idée principale d'un paragraphe","après un paragraphe lu ensemble, lui demander ce que l'auteur dit d'important"],
+  q_struct:["l'organisation des causes et des effets dans un texte","après une lecture, lui demander de nommer une cause et un effet"],
   mots:["la découverte du sens des mots nouveaux","chercher ensemble le sens d'un mot nouveau à partir de la phrase"],
   emo:["la compréhension des émotions des personnages","parler ensemble de ce que ressentent les personnages d'une histoire"],
   def:["le plaisir de lire des textes variés","lire quelques minutes chaque jour et en parler ensemble"]
@@ -575,8 +705,9 @@ function lenRange(){const a=parseInt($("#lenMin").value,10),b=parseInt($("#lenMa
 function recurrent(s){
   const weak=v=>v!=null&&v<0.75;
   return [
-    {k:"comp",nom:"comprendre ce qui est lu",src:[sc(s,"dn_comprendre"),avg([sc(s,"di_comprendre"),sc(s,"di_idee")]),sc(s,"rappel")]},
-    {k:"interp",nom:"saisir ce qui n'est pas écrit directement",src:[sc(s,"dn_interpreter"),sc(s,"di_interpreter"),sc(s,"emotion")]},
+    {k:"comp",nom:"comprendre ce qui est lu",src:[sc(s,"dn_comprendre"),avg([sc(s,"di_comprendre"),sc(s,"di_idee")]),sc(s,"rappel"),avg([qProc(s,"reperage"),qProc(s,"idee")])]},
+    {k:"interp",nom:"saisir ce qui n'est pas écrit directement",src:[sc(s,"dn_interpreter"),sc(s,"di_interpreter"),sc(s,"emotion"),avg([qProc(s,"causale"),qProc(s,"logique"),qProc(s,"pragma")])]},
+    {k:"mots",nom:"trouver le sens des mots nouveaux",src:[avg([sc(s,"def1"),sc(s,"def2"),sc(s,"def3")]),qProc(s,"lexicale")]},
     {k:"oral",nom:"lire à voix haute avec aisance",src:[avg([meprSc(s.meprises),sc(s,"decodage"),sc(s,"fl_autocorr")]),avg([sc(s,"groupes"),sc(s,"ponctuation")]),VIT[s.fl_vitesse]]}
   ].filter(t=>t.src.filter(weak).length>=2);
 }
@@ -591,7 +722,7 @@ function templateComment(s){
   const dep=depistage(s);
   const F=dep.filter(n=>n.c==="force").slice(0,2).map(n=>n.label),V=dep.filter(n=>n.c==="voie").slice(0,2).map(n=>n.label),D=dep.filter(n=>n.c==="defi").map(n=>n.label);
   if(F.length){const x=joinFr(F);add(1,lvl==="A"?"Les notions pour "+x+" sont solides.":lvl==="B"?"Les notions pour "+x+" sont bien comprises.":"Votre enfant réussit bien à "+x+".",30)}
-  if(V.length)add(1,"Votre enfant apprend encore à "+joinFr(V)+".",20);
+  if(V.length)add(1,"Votre enfant apprend encore "+joinFr(V.map(l=>"à "+l))+".",20);
   if(D.length)add(1,cap(joinFr(D))+(D.length>1?" restent difficiles":" reste difficile")+" pour le moment.",REQ);
   if(s.absences)add(1,INCOMPLET,REQ);
   // P2 : quand votre enfant lit
@@ -636,6 +767,11 @@ function describe(s){
   DN.forEach(d=>add(d[1]+" ("+d[2]+")",v(s,d[0])));add("Notes",s.dn_notes);
   L.push("\nDÉPISTAGE – TEXTE INFORMATIF");
   DI.forEach(d=>add(d[1]+" ("+d[2]+")",v(s,d[0])));add("Notes",s.di_notes);
+  if(hasQ(s)){const T=QTEST[gradeNum(s)];L.push("\nQUESTIONNAIRE DE COMPRÉHENSION – "+T.titre+" (r = réussie, p = en partie, n = non réussie)");
+    QITEMS.forEach(q=>{if(s[q[0]])add("Q"+q[1]+" – "+q[3],{r:"réussie",p:"en partie",n:"non réussie"}[s[q[0]]])});
+    Object.keys(QPROC).forEach(k=>{const v=qProc(s,k);if(v!=null)add("Processus « "+QPROC[k][0]+" » (pour les parents : "+QPROC[k][1]+")",TAG[cat(v)])});
+    const A=qAnalyse(s);A.C.forEach(t=>add("Constat",t));A.X.forEach(t=>add("Croisement",t));add("Commentaire sur le questionnaire",s.q_notes);
+    if(gradeNum(s)===5)L.push("- Note : en 5e année, formuler l'idée principale implicite (Q4) n'est pas attendu sans accompagnement; ne pas le présenter comme une difficulté.");}
   L.push("\nENTRETIEN DE LECTURE (texte narratif)");
   add("Raisons du choix du livre (nombre d'éléments)",v(s,"choix_raisons"));add("Livre à sa pointure (nombre d'éléments)",v(s,"pointure_raisons"));add("Notes choix",s.choix_notes);
   L.push("\nFLUIDITÉ (lecture à voix haute d'une page)");
@@ -674,7 +810,7 @@ RÈGLES
 - Ne jamais mentionner les sorties de classe, les distractions ni les comportements négatifs de façon directe.
 
 STRUCTURE (paragraphes séparés par une ligne vide)
-1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif et texte informatif) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
+1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif, texte informatif et questionnaire de compréhension : utilise l'analyse par processus et les croisements, en mots de parents) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
 2. QUAND VOTRE ENFANT LIT (paragraphe distinct, deux ou trois phrases) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Pour la lecture à voix haute, analyse les cotes de fluidité ET le commentaire de l'enseignante, puis résume-les en UNE phrase simple pour les parents (ex. « lit à voix haute avec aisance », « lit encore parfois mot à mot », « gagnerait à faire une pause aux points »). Les difficultés cotées « − » y sont nommées. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
 3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
 ${s.absences?"PORTRAIT INCOMPLET : à la fin du paragraphe 1, écrire « "+INCOMPLET+" » et rester prudent : présenter les observations comme partielles, sans conclure trop fermement.\n":""}4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
