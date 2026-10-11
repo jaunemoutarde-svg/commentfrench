@@ -131,6 +131,8 @@ ul.checklist li::before{content:"✓";color:var(--good);font-weight:700;width:1e
 ul.checklist li.bad::before{content:"✗";color:var(--bad)}
 ul.checklist li.bad{color:var(--bad)}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.histbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin:0 0 12px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
+.histbox select{width:auto;flex:1 1 200px}
 .lenset{display:flex;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted);align-items:center}
 .lenset input{width:5.5em;padding:3px 6px;font-variant-numeric:tabular-nums}
 .status{font-size:13px;color:var(--muted);min-height:1.2em}
@@ -187,6 +189,7 @@ ul.checklist li.bad{color:var(--bad)}
         <p class="eyebrow">Élève</p>
         <h2>Identification et niveau</h2>
         <p class="hint">Le prénom n'est jamais envoyé à Claude pour la rédaction.</p>
+        <div class="histbox" id="histBox" hidden><span>Versions précédentes de ce profil</span><select id="histSel" data-nosave aria-label="Versions précédentes"></select><button type="button" id="btnRestore">Restaurer</button></div>
         <div class="grid2">
           <label class="field"><span>Numéro (ex. 1.5 = 1er de la liste, 5e année)</span><input type="text" id="numero" inputmode="decimal" placeholder="1.5"></label>
           <label class="field"><span>Prénom</span><input type="text" id="prenom"></label>
@@ -338,9 +341,10 @@ $("#ent_interp").innerHTML=row("emotion","Pertinence de l'émotion identifiée",
 
 /* ---------- état : la classe ---------- */
 const form=$("#grid"), OLD_KEY="grilleLecture.v1", CLASS_KEY="grilleLecture.classe.v1";
-function getState(){const s={};form.querySelectorAll("input,select,textarea").forEach(el=>{if(el.type==="radio"){if(el.checked)s[el.name]=el.value}else if(el.type==="checkbox"){s[el.id]=el.checked}else s[el.id]=el.value});return s}
+function getState(){const s={};form.querySelectorAll("input,select,textarea").forEach(el=>{if(el.hasAttribute("data-nosave"))return;if(el.type==="radio"){if(el.checked)s[el.name]=el.value}else if(el.type==="checkbox"){s[el.id]=el.checked}else s[el.id]=el.value});return s}
 function setState(s){form.reset();form.querySelectorAll("input,select,textarea").forEach(el=>{if(el.type==="radio")el.checked=s[el.name]===el.value;else if(el.type==="checkbox")el.checked=!!s[el.id];else if(s[el.id]!=null)el.value=s[el.id]})}
 let students={},currentId=null,isExample=false,dbCol=null;const timers={};
+const clone=o=>JSON.parse(JSON.stringify(o));
 const newId=()=>"e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function localLoad(){try{return JSON.parse(localStorage.getItem(CLASS_KEY)||"null")}catch(e){return null}}
 function localSaveAll(){try{localStorage.setItem(CLASS_KEY,JSON.stringify({students,currentId}))}catch(e){}}
@@ -362,9 +366,15 @@ function normalizeAll(){Object.keys(students).forEach(id=>{const r=students[id],
   list.slice(1).forEach(e=>{const nid=newId();students[nid]={nom:e.nom,state:{prenom:e.nom,numero:e.no.code,annee:e.no.annee+"e année",date:st.date||""},comment:"",updatedAt:Date.now()};persist(nid,true)})})}
 $("#prenom").addEventListener("change",()=>{const v=$("#prenom").value;if(!parseNo(v))return;const e=parseEntry(v);
   $("#prenom").value=e.nom;$("#numero").value=e.no.code;$("#annee").value=e.no.annee+"e année";save()});
+/* historique : quand des observations disparaissent, l'ancienne version est gardée (10 au plus) */
+const META=["prenom","numero","annee","date","discipline"];
+const fillCount=(st,com)=>Object.entries(st||{}).filter(([k,v])=>v&&!META.includes(k)).length+(txt(com)?1:0);
 function save(){
   if(!currentId||!students[currentId]){return}
-  const r=students[currentId];r.state=getState();r.comment=$("#comment").value;r.updatedAt=Date.now();
+  const r=students[currentId],next=getState(),com=$("#comment").value;
+  if(fillCount(next,com)<fillCount(r.state,r.comment)){r.hist=r.hist||[];const last=r.hist[r.hist.length-1];
+    if(!last||Date.now()-last.t>120000){r.hist.push({t:Date.now(),state:clone(r.state||{}),comment:r.comment||""});if(r.hist.length>10)r.hist.shift();renderHist()}}
+  r.state=next;r.comment=com;r.updatedAt=Date.now();
   const nm=(r.state.prenom||"").trim();if(nm)r.nom=nm;
   persist(currentId);renderClass();$("#curName").textContent=r.nom;
 }
@@ -422,11 +432,17 @@ $("#groupe").addEventListener("change",renderClass);
 $("#numero").addEventListener("input",()=>{const n=parseNo($("#numero").value);if(n)$("#annee").value=n.annee+"e année"});
 $("#annee").addEventListener("change",()=>{const n=parseNo($("#numero").value),g=$("#annee").value.charAt(0);if(n&&String(n.annee)!==g)$("#numero").value=n.ordre+"."+g});
 
+function renderHist(){const r=currentId&&students[currentId],h=(r&&r.hist)||[],box=$("#histBox");
+  box.hidden=!h.length;if(!h.length)return;
+  $("#histSel").innerHTML=h.map((x,i)=>({x,i})).reverse().map(({x,i})=>'<option value="'+i+'">'+new Date(x.t).toLocaleString("fr-CA",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" · "+fillCount(x.state,x.comment)+" éléments remplis</option>").join("")}
+$("#btnRestore").onclick=()=>{const r=students[currentId];if(!r||!r.hist)return;const i=+$("#histSel").value,v=r.hist[i];if(!v)return;
+  r.hist.splice(i,1);r.hist.push({t:Date.now(),state:clone(r.state||{}),comment:r.comment||""});if(r.hist.length>10)r.hist.shift();
+  r.state=clone(v.state);r.comment=v.comment;r.updatedAt=Date.now();persist(currentId,true);openStudent(currentId,false);setStatus("Version précédente restaurée.")};
 function openStudent(id,scroll){
   const r=students[id];if(!r)return;flush();
   currentId=id;isExample=false;$("#exampleBanner").hidden=true;
   setState(r.state||{});$("#prenom").value=r.nom||"";$("#comment").value=r.comment||"";
-  $("#curName").textContent=r.nom||"";updateChecks();renderFluid();renderClass();localSaveAll();
+  $("#curName").textContent=r.nom||"";updateChecks();renderFluid();renderClass();renderHist();localSaveAll();
   setStatus("Profil de "+(r.nom||"l'élève")+" ouvert.");
   const f=$("#filtre").value;if(scroll){const sec=SECTIONS.find(x=>x[0]===f);const el=document.getElementById(sec?sec[2]:"sec_eleve");if(el)el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})}
 }
@@ -479,10 +495,18 @@ function initClass(){
     const uid=db&&user?await user.id():null;
     if(!uid){setInfo("Enregistré dans ce navigateur seulement. Connectez-vous à Claude pour retrouver votre classe sur tous vos appareils.");return}
     dbCol=db.collection("data/users/"+uid);
-    const snap=await dbCol.get();const remote={};snap.docs.forEach(d=>{const v=d.data();if(v&&v.nom!=null)remote[d.id]=v});
+    const snap=await dbCol.get();const remote={};snap.docs.forEach(d=>{const v=d.data();if(v&&v.nom!=null)remote[d.id]=clone(v)});
     if(Object.keys(remote).length){students=remote;if(!students[currentId])currentId=null;normalizeAll();localSaveAll();showInitial()}
     else Object.keys(students).forEach(id=>persist(id,true));
     setInfo("Classe enregistrée dans votre compte Claude. Elle est privée : vous seule la voyez.");
+    // suivi en direct : un autre onglet ou appareil ne peut plus écraser vos saisies avec une copie périmée
+    dbCol.onSnapshot(sn=>{let changed=false;
+      sn.docChanges().forEach(ch=>{const id=ch.doc.id;if(timers[id])return;
+        if(ch.type==="removed"){if(students[id]&&ch.doc.data()&&(students[id].updatedAt||0)<=(ch.doc.data().updatedAt||0)){delete students[id];changed=true;if(id===currentId)currentId=null}return}
+        const d=ch.doc.data();if(!d||d.nom==null)return;const loc=students[id];
+        if(!loc||(d.updatedAt||0)>(loc.updatedAt||0)){students[id]=clone(d);changed=true;
+          if(id===currentId){const a=document.activeElement;if(!(a&&form.contains(a)&&/INPUT|TEXTAREA/.test(a.tagName)))openStudent(id,false)}}});
+      if(changed){localSaveAll();if(!currentId)showInitial();else renderClass()}},()=>{});
   }).catch(()=>setInfo("Enregistré dans ce navigateur seulement (compte injoignable).",true));
 }
 
