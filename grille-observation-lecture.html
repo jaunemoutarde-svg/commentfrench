@@ -131,6 +131,7 @@ ul.checklist li::before{content:"✓";color:var(--good);font-weight:700;width:1e
 ul.checklist li.bad::before{content:"✗";color:var(--bad)}
 ul.checklist li.bad{color:var(--bad)}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.crossbox{border-top:1px solid var(--line);padding-top:4px}
 .quest{margin-top:16px;border-top:1px solid var(--line);padding-top:4px}
 .qlist{margin:0 0 6px;padding-left:18px;display:grid;gap:4px;font-size:14px}
 .histbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin:0 0 12px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
@@ -307,16 +308,17 @@ ul.checklist li.bad{color:var(--bad)}
         <div class="btnrow">
           <button type="button" class="primary" id="btnAI" hidden>Rédiger avec Claude</button>
           <button type="button" id="btnStop" hidden>Arrêter</button>
-          <button type="button" id="btnTpl">Version modèle</button>
+          <button type="button" id="btnTpl">Version rapide (cases seulement)</button>
           <button type="button" id="btnCopy">Copier</button>
         </div>
-        <p class="status" id="status">« Version modèle » assemble un commentaire à partir des cases cochées.</p>
+        <p class="status" id="status">La version rapide assemble un commentaire à partir des cases cochées seulement.</p>
         <textarea id="comment" aria-label="Commentaire aux parents"></textarea>
         <div class="meter"><span id="count">0 caractère</span><span id="cible"></span></div>
         <div class="lenset"><label>Longueur visée : <input type="text" id="lenMin" inputmode="numeric" aria-label="Minimum de caractères"></label><label>à <input type="text" id="lenMax" inputmode="numeric" aria-label="Maximum de caractères"> caractères</label></div>
         <div class="bar"><i id="barFill" style="width:0"></i></div>
         <div class="btnrow"><button type="button" id="btnFit" hidden>Ajuster la longueur</button></div>
         <ul class="checklist" id="checks"></ul>
+        <div class="crossbox" id="crossBox" hidden></div>
       </div>
     </aside>
   </div>
@@ -464,7 +466,7 @@ function openStudent(id,scroll){
   const r=students[id];if(!r)return;flush();
   currentId=id;isExample=false;$("#exampleBanner").hidden=true;
   setState(r.state||{});$("#prenom").value=r.nom||"";$("#comment").value=r.comment||"";
-  $("#curName").textContent=r.nom||"";updateChecks();renderFluid();renderQuest();renderClass();renderHist();localSaveAll();
+  $("#curName").textContent=r.nom||"";updateChecks();renderFluid();renderQuest();renderCross();renderClass();renderHist();localSaveAll();
   setStatus("Profil de "+(r.nom||"l'élève")+" ouvert.");
   const f=$("#filtre").value;if(scroll){const sec=SECTIONS.find(x=>x[0]===f);const el=document.getElementById(sec?sec[2]:"sec_eleve");if(el)el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})}
 }
@@ -804,10 +806,21 @@ function describe(s){
   add("\nNotes de l'enseignante",s.notes);
   return L.join("\n");
 }
-function buildPrompt(s){
+/* tous les commentaires écrits par l'enseignante : source principale */
+const NOTE_FIELDS=[["notes","Notes générales"],["adapt_notes","Adaptations"],["dn_notes","Dépistage – texte narratif"],["di_notes","Dépistage – texte informatif"],["q_notes","Questionnaire de compréhension"],["oral_notes","Fluidité (lecture à voix haute)"],["choix_notes","Choix du livre"],["comp_notes","Compréhension et mots nouveaux"],["interp_notes","Interprétation"]];
+function notesList(s){return NOTE_FIELDS.filter(f=>txt(s[f[0]])).map(f=>"- "+f[1]+" : « "+s[f[0]].trim()+" »")}
+function buildPrompt(s,asJson){
   const math=(s.discipline||"").startsWith("Math");
   const subj=math?"en mathématique (la lecture et la compréhension des problèmes)":"en lecture (français)";
   return `Tu rédiges un commentaire au bulletin destiné aux parents d'un élève du 3e cycle du primaire au Québec (5e ou 6e année), ${subj}. Première communication de l'année, avec un bilan au bulletin de la mi-novembre.
+
+DÉMARCHE (dans cet ordre)
+1. LES COMMENTAIRES ÉCRITS DE L'ENSEIGNANTE PASSENT TOUJOURS EN PREMIER. Lis-les tous (liste ci-dessous) et dégage son message principal. Tout ce qu'elle y écrit doit se retrouver dans le commentaire aux parents, reformulé simplement. Ne le dilue pas et ne le remplace pas par le contenu des cases.
+2. CROISE LES REGARDS avec les éléments cochés (cotes, questionnaire, fluidité, entretien, habitudes) : ils servent à confirmer, nuancer ou compléter les commentaires. Si une case contredit un commentaire écrit, suis le commentaire et signale l'écart.
+3. Seulement pour ce que les commentaires ne couvrent pas, appuie-toi sur les cases cochées.
+
+COMMENTAIRES ÉCRITS DE L'ENSEIGNANTE (source principale)
+${notesList(s).join("\n")||"(aucun commentaire écrit : appuie-toi sur les cases cochées)"}
 
 RÈGLES
 - COURT ET SIMPLE : entre ${lenRange().min} et ${lenRange().max} caractères, espaces comprises (jamais plus de ${lenRange().max}). Phrases courtes, une idée par phrase, mots de tous les jours. Garder l'essentiel : le niveau, les difficultés, l'objectif et la recommandation passent avant les détails.
@@ -832,7 +845,9 @@ ${s.absences?"PORTRAIT INCOMPLET : à la fin du paragraphe 1, écrire « "+INCOM
 5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
 
 Avant de répondre, vérifie : niveau conforme, aucune contradiction ni répétition, aucun chiffre, aucun « il »/« elle », aucun remerciement, une seule recommandation, longueur respectée.
-Réponds UNIQUEMENT avec le commentaire, sans titre, sans guillemets, sans explication.
+${asJson?`Réponds UNIQUEMENT avec un objet JSON de cette forme :
+{"commentaire":"le commentaire aux parents (paragraphes séparés par \\n\\n)","croisement":[{"commentaire":"court extrait d'un commentaire de l'enseignante","cases":"ce que montrent les éléments cochés sur ce point","lien":"confirme" | "nuance" | "contredit"}],"alertes":["écart ou point à vérifier par l'enseignante"]}
+Le croisement contient une entrée par commentaire écrit (3 à 6 entrées au plus).`:"Réponds UNIQUEMENT avec le commentaire, sans titre, sans guillemets, sans explication."}
 
 IMPORTANT : tous les commentaires écrits par l'enseignante (notes, observations, adaptations) sont prioritaires. Leur contenu doit se retrouver dans le commentaire, reformulé pour les parents.
 
@@ -872,7 +887,7 @@ $("#comment").addEventListener("input",()=>{updateChecks();save()});
 
 function setStatus(t){$("#status").textContent=t}
 $("#btnTpl").onclick=()=>{const s=getState();$("#comment").value=templateComment(s);updateChecks();save();
-  setStatus("Version modèle assemblée à partir des cases cochées. Vos notes en texte libre ne sont pas utilisées ici : relisez et ajustez.")};
+  setStatus("Version rapide assemblée à partir des cases cochées. Vos notes en texte libre ne sont pas utilisées ici : relisez et ajustez.")};
 $("#btnCopy").onclick=async()=>{const ta=$("#comment");try{await navigator.clipboard.writeText(ta.value);setStatus("Commentaire copié.")}catch(e){ta.focus();ta.select();setStatus("Texte sélectionné : utilisez Ctrl+C ou Cmd+C.")}};
 
 /* ---------- Claude (sample) ---------- */
@@ -894,10 +909,26 @@ $("#btnFluid").onclick=async()=>{const s=getState(),b=$("#btnFluid"),out=$("#flu
   catch(e){out.textContent=ERR[e&&e.code]||"L'analyse n'a pas abouti. Réessayez."}
   finally{b.disabled=false}};
 $("#btnStop").onclick=()=>ctl&&ctl.abort();
-$("#btnAI").onclick=()=>ask(buildPrompt(getState()),"Claude rédige le commentaire… (quelques secondes)");
+$("#btnAI").onclick=async()=>{
+  const btns=[$("#btnAI"),$("#btnFit"),$("#btnTpl")];btns.forEach(b=>b.disabled=true);$("#btnStop").hidden=false;
+  ctl=new AbortController();setStatus("Claude lit vos commentaires, les croise avec les cases et rédige… (jusqu'à une minute)");
+  const id=currentId;
+  try{const r=await sample.json(buildPrompt(getState(),true),{signal:ctl.signal,cache:false});
+    const com=String((r&&r.commentaire)||"").trim();if(!com)throw {code:"invalid_json"};
+    $("#comment").value=com;
+    if(id&&students[id]){students[id].cross={items:Array.isArray(r.croisement)?r.croisement.slice(0,8):[],alertes:Array.isArray(r.alertes)?r.alertes.slice(0,6):[],t:Date.now()}}
+    renderCross();setStatus("Commentaire rédigé à partir de vos commentaires, croisés avec les cases. Relisez-le avant de le copier.")}
+  catch(e){setStatus(ERR[e&&e.code]||"La rédaction n'a pas abouti. Réessayez ou utilisez la version rapide.");if(e&&e.code==="not_granted")$("#btnAI").hidden=true}
+  finally{btns.forEach(b=>b.disabled=false);$("#btnStop").hidden=true;updateChecks();save()}};
+const LIEN={confirme:["force","Confirme"],nuance:["voie","Nuance"],contredit:["defi","Contredit"]};
+function renderCross(){const r=currentId&&students[currentId],c=r&&r.cross,box=$("#crossBox");
+  if(!c||(!c.items.length&&!c.alertes.length)){box.hidden=true;return}box.hidden=false;
+  box.innerHTML='<p class="sub-h">Vos commentaires croisés avec les cases</p><ul class="flist">'+c.items.map(x=>{const l=LIEN[x.lien]||["voie",esc(x.lien||"")];
+    return '<li><b><span class="tag '+l[0]+'">'+l[1]+'</span></b><span>« '+esc(x.commentaire||"")+' » → '+esc(x.cases||"")+'</span></li>'}).join("")+'</ul>'+
+    (c.alertes.length?'<p class="sub-h">À vérifier</p><ul class="qlist">'+c.alertes.map(a=>'<li>'+esc(a)+'</li>').join("")+'</ul>':'')}
 $("#btnFit").onclick=()=>{const t=$("#comment").value.trim(),n=t.length;
-  ask(buildPrompt(getState())+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>lenRange().max?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre "+lenRange().min+" et "+lenRange().max+" caractères en gardant le niveau, les difficultés, l'objectif, la recommandation et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
-if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;$("#btnFluid").hidden=false;setStatus("« Rédiger avec Claude » utilise vos cases et vos notes. « Version modèle » fonctionne sans Claude.");updateChecks()}}).catch(()=>{})}
+  ask(buildPrompt(getState(),false)+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>lenRange().max?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre "+lenRange().min+" et "+lenRange().max+" caractères en gardant le niveau, les difficultés, l'objectif, la recommandation et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
+if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;$("#btnFluid").hidden=false;setStatus("« Rédiger avec Claude » part de vos commentaires écrits et les croise avec les cases. La version rapide n'utilise que les cases.");updateChecks()}}).catch(()=>{})}
 initClass();
 })();
 </script>
