@@ -1,0 +1,462 @@
+<title>Grille d'observation en lecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: grille à gauche (sections empilées), panneau du commentaire collant à droite ; une colonne sur téléphone. */
+:root{
+  --paper:#F5F7F4; --sheet:#FFFFFF; --ink:#1D2B2E; --muted:#5B6B6E; --line:#D6DEDA;
+  --accent:#1F6F78; --accent-soft:#E2F0EF; --mark:#F2C14E; --mark-ink:#3A2C00;
+  --good:#2E7D4F; --warn:#B26A00; --bad:#B3261E;
+  --f-display:"Literata",Georgia,"Times New Roman",serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#121A1B; --sheet:#1A2426; --ink:#E6ECEA; --muted:#9AABAA; --line:#2F3E40;
+  --accent:#6FC3C9; --accent-soft:#1E3436; --mark:#E7B84A; --mark-ink:#241A00;
+  --good:#6CC891; --warn:#E3A34A; --bad:#F08A80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#121A1B; --sheet:#1A2426; --ink:#E6ECEA; --muted:#9AABAA; --line:#2F3E40;
+  --accent:#6FC3C9; --accent-soft:#1E3436; --mark:#E7B84A; --mark-ink:#241A00;
+  --good:#6CC891; --warn:#E3A34A; --bad:#F08A80; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-block:24px 48px;padding-inline:16px}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(1.5rem,3vw,2.1rem);margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:62ch}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:8px 14px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.seg label:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--sheet);font-weight:700}
+button:disabled{opacity:.55;cursor:default}
+.banner{background:var(--mark);color:var(--mark-ink);border-radius:8px;padding:8px 12px;margin-bottom:16px;font-size:14px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:24px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:18px;min-width:0}
+section.card{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
+section.card>h2{font-family:var(--f-display);font-weight:700;font-size:1.15rem;margin:0 0 2px}
+.hint{color:var(--muted);font-size:13px;margin:0 0 12px}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 4px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+.field>span{font-size:13px;color:var(--muted)}
+input[type=text],input[type=date],select,textarea{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:76px;resize:vertical}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.chk{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:14px;cursor:pointer;background:var(--paper)}
+.chk:has(input:checked){background:var(--accent-soft);border-color:var(--accent)}
+.chk input{accent-color:var(--accent)}
+.rows{display:grid;gap:8px;margin-bottom:12px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0}
+@media (max-width:520px){.row{grid-template-columns:minmax(0,1fr)}}
+.row .lbl{font-size:14px}
+.row .lbl small{display:block;color:var(--muted);font-size:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg label{position:relative;min-width:44px;text-align:center;padding:5px 10px;font-size:14px;cursor:pointer;border-left:1px solid var(--line);font-variant-numeric:tabular-nums;user-select:none}
+.seg label:first-child{border-left:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--mark);color:var(--mark-ink);font-weight:700}
+.levels{display:grid;gap:6px}
+.level{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+.level:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.level b{font-family:var(--f-display);font-size:1.05rem;width:1.4em;text-align:center}
+.level small{color:var(--muted)}
+.level input{position:absolute;opacity:0}
+.sub-h{font-weight:700;font-size:14px;margin:14px 0 6px;color:var(--ink)}
+.sub-h:first-of-type{margin-top:4px}
+.word{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:6px}
+@media (max-width:520px){.word{grid-template-columns:minmax(0,1fr)}}
+details.more{margin-top:8px}
+details.more summary{cursor:pointer;color:var(--accent);font-size:14px}
+aside.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:grid;gap:12px;min-width:0}
+@media (max-width:900px){aside.panel{position:static}}
+.out{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:10px}
+.out h2{font-family:var(--f-display);font-size:1.15rem;margin:0}
+#comment{min-height:300px;background:var(--sheet);font-size:15px;line-height:1.55}
+.meter{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:99px;background:var(--line);position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:99px}
+.bar .zone{position:absolute;top:0;bottom:0;left:60%;width:20%;background:var(--good);opacity:.25}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:700}
+.pill.ok{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+.pill.no{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+ul.checklist{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}
+ul.checklist li{display:flex;gap:8px;align-items:baseline}
+ul.checklist li::before{content:"✓";color:var(--good);font-weight:700;width:1em}
+ul.checklist li.bad::before{content:"✗";color:var(--bad)}
+ul.checklist li.bad{color:var(--bad)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.status{font-size:13px;color:var(--muted);min-height:1.2em}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .2s}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">3e cycle du primaire · 1re communication</p>
+      <h1>Grille d'observation en lecture</h1>
+      <p class="sub">Cochez vos observations du dépistage (texte narratif et texte informatif) et de l'entretien de lecture, ajoutez vos notes, puis rédigez le commentaire aux parents selon les règles de l'école.</p>
+    </div>
+    <div class="actions">
+      <button type="button" id="btnExample">Charger l'exemple</button>
+      <button type="button" id="btnReset">Nouvel élève</button>
+    </div>
+  </header>
+  <div class="banner" id="exampleBanner" hidden>Exemple fictif chargé pour montrer l'outil. Cliquez sur « Nouvel élève » pour vider la grille.</div>
+
+  <div class="layout">
+    <form class="col" id="grid" autocomplete="off" onsubmit="return false">
+
+      <section class="card">
+        <p class="eyebrow">Élève</p>
+        <h2>Identification et niveau</h2>
+        <p class="hint">Le prénom reste dans votre navigateur. Il n'est jamais envoyé pour la rédaction.</p>
+        <div class="grid2">
+          <label class="field"><span>Prénom</span><input type="text" id="prenom"></label>
+          <label class="field"><span>Date</span><input type="date" id="date"></label>
+          <label class="field"><span>Année</span><select id="annee"><option>5e année</option><option>6e année</option></select></label>
+          <label class="field"><span>Discipline du commentaire</span><select id="discipline"><option>Français – lecture</option><option>Mathématique – lecture des problèmes</option></select></label>
+        </div>
+        <p class="sub-h">Niveau global par rapport aux attentes (échelle de l'école)</p>
+        <div class="levels" id="levels"></div>
+        <p class="sub-h">Absences</p>
+        <div class="checks"><label class="chk"><input type="checkbox" id="absences"> Absences à souligner</label></div>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">Paragraphe 1</p>
+        <h2>Forces personnelles</h2>
+        <div class="checks" id="forces"></div>
+        <p class="sub-h">Habitudes et contexte (formulées positivement)</p>
+        <div class="checks" id="habitudes"></div>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">Dépistage</p>
+        <h2>Texte narratif</h2>
+        <p class="hint">− : défi · ± : en voie d'acquisition ou fragile · + : force</p>
+        <div class="rows" id="dn"></div>
+        <label class="field"><span>Vos observations (texte libre)</span><textarea id="dn_notes" placeholder="Ex. : repère bien les personnages et le lieu, mais oublie souvent l'élément déclencheur…"></textarea></label>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">Dépistage</p>
+        <h2>Texte informatif</h2>
+        <p class="hint">− : défi · ± : en voie d'acquisition ou fragile · + : force</p>
+        <div class="rows" id="di"></div>
+        <label class="field"><span>Vos observations (texte libre)</span><textarea id="di_notes" placeholder="Ex. : trouve les informations explicites; a besoin d'aide pour l'idée principale d'un paragraphe…"></textarea></label>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">Paragraphe 2</p>
+        <h2>Entretien de lecture</h2>
+        <p class="hint">D'après le modèle d'entretien de lecture (texte narratif) de Véronique D'Anjou et Lucie Béchard.</p>
+        <div class="grid2">
+          <label class="field"><span>Titre du livre</span><input type="text" id="titre"></label>
+          <label class="field"><span>Auteur</span><input type="text" id="auteur"></label>
+        </div>
+
+        <p class="sub-h">Choix du livre</p>
+        <div class="rows" id="ent_choix"></div>
+        <label class="field"><span>Commentaire</span><textarea id="choix_notes" placeholder="Raisons nommées, connaissance de ses goûts…"></textarea></label>
+
+        <p class="sub-h">Lecture oralisée (1 page)</p>
+        <div class="rows" id="ent_oral"></div>
+        <label class="field"><span>Commentaire</span><textarea id="oral_notes" placeholder="Types de méprises, autocorrections…"></textarea></label>
+
+        <p class="sub-h">Compréhension (1 page)</p>
+        <div class="rows" id="ent_comp"></div>
+
+        <p class="sub-h">Mots à définir</p>
+        <div id="ent_mots"></div>
+        <p class="sub-h">Stratégies observées</p>
+        <div class="checks" id="strategies"></div>
+        <label class="field" style="margin-top:8px"><span>Autre stratégie</span><input type="text" id="s_autre"></label>
+        <label class="field" style="margin-top:8px"><span>Commentaire</span><textarea id="comp_notes" placeholder="Qualité du rappel, sens des mots…"></textarea></label>
+
+        <p class="sub-h">Interprétation</p>
+        <p class="hint">« Peux-tu identifier une émotion vécue par un personnage? Explique quels indices le prouvent. »</p>
+        <div class="rows" id="ent_interp"></div>
+        <label class="field"><span>Commentaire</span><textarea id="interp_notes"></textarea></label>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">Paragraphes 3 à 5</p>
+        <h2>Notes de l'enseignante</h2>
+        <label class="field"><span>Autres observations, objectif ou recommandation souhaités (facultatif)</span><textarea id="notes" placeholder="Ex. : je voudrais que l'objectif porte sur l'idée principale des textes informatifs."></textarea></label>
+      </section>
+    </form>
+
+    <aside class="panel">
+      <div class="out">
+        <h2>Commentaire aux parents</h2>
+        <div class="btnrow">
+          <button type="button" class="primary" id="btnAI" hidden>Rédiger avec Claude</button>
+          <button type="button" id="btnStop" hidden>Arrêter</button>
+          <button type="button" id="btnTpl">Version modèle</button>
+          <button type="button" id="btnCopy">Copier</button>
+        </div>
+        <p class="status" id="status">« Version modèle » assemble un commentaire à partir des cases cochées.</p>
+        <textarea id="comment" aria-label="Commentaire aux parents"></textarea>
+        <div class="meter"><span id="count">0 caractère</span><span>cible : 900 à 1200</span></div>
+        <div class="bar"><span class="zone"></span><i id="barFill" style="width:0"></i></div>
+        <div class="btnrow"><button type="button" id="btnFit" hidden>Ajuster la longueur</button></div>
+        <ul class="checklist" id="checks"></ul>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const RATE=[["-","−"],["+/-","±"],["+","+"]];
+const LEVELS=[
+  ["A","se situent au-delà des attentes","90 % et plus"],
+  ["B","répondent facilement aux attentes","80 à 89 %"],
+  ["C","répondent aux attentes","70 à 79 %"],
+  ["D","répondent aux attentes avec difficulté","60 à 69 %"],
+  ["E","se situent sous les attentes","moins de 60 %"]];
+const FORCES=[["f_participe","Participe bien","participe bien en classe"],["f_persevere","Persévère","fait preuve de persévérance"],["f_autonome","Autonome","travaille de façon autonome"],["f_soigne","Travail soigné","remet un travail soigné"],["f_aide","Va chercher de l'aide (pairs ou adulte)","va chercher de l'aide auprès de ses pairs ou de l'adulte"]];
+const HABITS=[["h_ecoute","Écoute ou implication à améliorer","Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser."],["h_temps","A besoin de plus de temps","Un peu plus de temps lui est parfois nécessaire pour terminer son travail."],["h_consigne","Commence avant d'avoir compris","Il arrive que votre enfant commence avant d'avoir bien saisi la consigne."]];
+const DN=[["dn_comprendre","Comprendre","Personnages, lieux, problème, événements, fin"],["dn_interpreter","Interpréter","Inférences, intentions et émotions des personnages"],["dn_reagir","Réagir","Exprimer et justifier ses réactions"],["dn_apprecier","Apprécier","Porter un jugement sur l'histoire"]];
+const DI=[["di_comprendre","Comprendre","Repérer les informations importantes"],["di_idee","Idée principale","Dégager l'idée principale d'un paragraphe"],["di_interpreter","Interpréter","Faire des liens et des inférences"],["di_reagir","Réagir","Exprimer ce qu'il retient, faire des liens personnels"]];
+const COUNT=["1","2","3","4","5","plus"];
+const MEPR=["0-1","2-3","4-5","+ de 5"];
+const STRATS=[["s_connaissances","Activer ses connaissances antérieures"],["s_contexte","Utiliser le contexte"],["s_poursuivre","Poursuivre la lecture"],["s_relire","Relire"],["s_illustrations","Regarder les illustrations"],["s_precedent","Observer les mots qui précèdent"],["s_decomposer","Décomposer le mot (morphologie)"],["s_classe","Identifier la classe de mots"],["s_famille","Trouver un mot de même famille"]];
+const STRAT_PARENT={s_connaissances:"faire des liens avec ce qu'il sait déjà",s_contexte:"utiliser le sens de la phrase",s_poursuivre:"poursuivre sa lecture",s_relire:"relire",s_illustrations:"observer les illustrations",s_precedent:"observer les mots qui précèdent",s_decomposer:"découper le mot en parties",s_classe:"se demander quelle sorte de mot c'est",s_famille:"penser à un mot de même famille"};
+STRAT_PARENT.s_connaissances="faire des liens avec ses connaissances";
+
+function seg(name,opts){return '<span class="seg" role="radiogroup">'+opts.map((o,i)=>{const v=Array.isArray(o)?o[0]:o,t=Array.isArray(o)?o[1]:o;return '<label><input type="radio" name="'+name+'" id="'+name+'_'+i+'" value="'+v+'">'+t+'</label>'}).join("")+'</span>'}
+function row(id,lbl,small,opts){return '<div class="row"><div class="lbl">'+lbl+(small?'<small>'+small+'</small>':'')+'</div>'+seg(id,opts||RATE)+'</div>'}
+function chk(id,lbl){return '<label class="chk"><input type="checkbox" id="'+id+'"> '+lbl+'</label>'}
+
+$("#levels").innerHTML=LEVELS.map((l,i)=>'<label class="level"><input type="radio" name="niveau" id="niveau_'+i+'" value="'+l[0]+'"><b>'+l[0]+'</b><span>« '+l[1]+' »<br><small>'+l[2]+'</small></span></label>').join("");
+$("#forces").innerHTML=FORCES.map(f=>chk(f[0],f[1])).join("");
+$("#habitudes").innerHTML=HABITS.map(h=>chk(h[0],h[1])).join("");
+$("#dn").innerHTML=DN.map(d=>row(d[0],d[1],d[2])).join("");
+$("#di").innerHTML=DI.map(d=>row(d[0],d[1],d[2])).join("");
+$("#ent_choix").innerHTML=row("choix_raisons","Pourquoi as-tu choisi ce livre?","Nombre d'éléments mentionnés",COUNT)+row("pointure_raisons","Est-ce qu'il est à ta pointure? Pourquoi?","Nombre d'éléments mentionnés",COUNT);
+$("#ent_oral").innerHTML=row("meprises","Nombre de méprises","",MEPR)+row("decodage","Décodage","Fluidité")+row("groupes","Lire par groupes de mots","Fluidité")+row("ponctuation","Respect de la ponctuation","Fluidité")+row("expressive","Lecture expressive","Fluidité");
+$("#ent_comp").innerHTML=row("rappel","Rappel de l'histoire","");
+$("#ent_mots").innerHTML=[1,2,3].map(n=>'<div class="word"><input type="text" id="mot'+n+'" placeholder="Mot '+n+'" aria-label="Mot '+n+'">'+seg("def"+n,RATE)+'</div>').join("")+'<p class="hint">Cote : définition plausible.</p>';
+$("#strategies").innerHTML=STRATS.map(s=>chk(s[0],s[1])).join("");
+$("#ent_interp").innerHTML=row("emotion","Pertinence de l'émotion identifiée","")+row("indices","Nombre d'indices mentionnés","",COUNT);
+
+/* ---------- état ---------- */
+const form=$("#grid"), KEY="grilleLecture.v1";
+function getState(){const s={};form.querySelectorAll("input,select,textarea").forEach(el=>{if(el.type==="radio"){if(el.checked)s[el.name]=el.value}else if(el.type==="checkbox"){s[el.id]=el.checked}else s[el.id]=el.value});return s}
+function setState(s){form.reset();form.querySelectorAll("input,select,textarea").forEach(el=>{if(el.type==="radio")el.checked=s[el.name]===el.value;else if(el.type==="checkbox")el.checked=!!s[el.id];else if(s[el.id]!=null)el.value=s[el.id]})}
+let isExample=false;
+function save(){try{localStorage.setItem(KEY,JSON.stringify({state:getState(),comment:$("#comment").value,isExample}))}catch(e){}}
+form.addEventListener("input",()=>{if(isExample){isExample=false;$("#exampleBanner").hidden=true}save()});
+form.addEventListener("change",save);
+
+const EXAMPLE={state:{date:"",annee:"5e année",discipline:"Français – lecture",niveau:"B",f_participe:true,f_persevere:true,f_aide:true,h_consigne:true,
+ dn_comprendre:"+",dn_interpreter:"+/-",dn_reagir:"+",dn_apprecier:"+",dn_notes:"Repère bien les personnages, le lieu et le problème. Résume l'histoire avec les éléments importants. Ses inférences restent parfois en surface.",
+ di_comprendre:"+/-",di_idee:"-",di_interpreter:"+/-",di_reagir:"+",di_notes:"Trouve les informations explicites, mais confond souvent un détail et l'idée principale d'un paragraphe. Utilise peu les intertitres.",
+ titre:"Le journal d'un dégonflé",auteur:"Jeff Kinney",choix_raisons:"3",pointure_raisons:"2",choix_notes:"Connaît bien ses goûts (humour, bandes dessinées).",
+ meprises:"2-3",decodage:"+",groupes:"+/-",ponctuation:"+/-",expressive:"+/-",oral_notes:"Autocorrige ses méprises. Lit encore parfois mot à mot quand la phrase est longue.",
+ rappel:"+",mot1:"maugréer",def1:"+",mot2:"subterfuge",def2:"+/-",mot3:"pétrifié",def3:"+",s_contexte:true,s_relire:true,s_famille:true,comp_notes:"",
+ emotion:"+",indices:"2",interp_notes:"Nomme la gêne du personnage et l'appuie sur deux indices du texte.",notes:""},comment:"",isExample:true};
+
+function applyExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=new Date().toISOString().slice(0,10);setState(d.state);$("#comment").value="";isExample=true;$("#exampleBanner").hidden=false;updateChecks();save()}
+(function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){}
+ if(d&&d.state){setState(d.state);$("#comment").value=d.comment||"";isExample=!!d.isExample;$("#exampleBanner").hidden=!isExample;updateChecksSoon()}else applyExample()})();
+function updateChecksSoon(){setTimeout(updateChecks,0)}
+
+$("#btnExample").onclick=applyExample;
+let resetArmed=null;
+$("#btnReset").onclick=()=>{const b=$("#btnReset");
+ if(!resetArmed){b.textContent="Confirmer : tout effacer";resetArmed=setTimeout(()=>{b.textContent="Nouvel élève";resetArmed=null},3500);return}
+ clearTimeout(resetArmed);resetArmed=null;b.textContent="Nouvel élève";
+ setState({});$("#date").value=new Date().toISOString().slice(0,10);$("#comment").value="";isExample=false;$("#exampleBanner").hidden=true;updateChecks();save();setStatus("Grille vidée.")};
+
+/* ---------- aides ---------- */
+const SC={"+":2,"+/-":1,"-":0};
+const cat=v=>v==null?null:(v>=1.5?"force":v>=0.75?"voie":"defi");
+function avg(vals){vals=vals.filter(v=>v!=null);return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null}
+const sc=(s,k)=>s[k]!=null&&s[k] in SC?SC[s[k]]:null;
+const meprSc=v=>v==null?null:({"0-1":2,"2-3":1,"4-5":0.5,"+ de 5":0})[v];
+function joinFr(a){return a.length<2?(a[0]||""):a.slice(0,-1).join(", ")+" et "+a[a.length-1]}
+const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
+const low=t=>t.charAt(0).toLowerCase()+t.slice(1);
+const levelPhrase=k=>(LEVELS.find(l=>l[0]===k)||[])[1];
+
+/* notions du dépistage (paragraphe 1) */
+function depistage(s){
+  return [
+    {k:"narr",label:"la compréhension des histoires",v:avg([sc(s,"dn_comprendre")])},
+    {k:"info",label:"la compréhension des textes informatifs",v:avg([sc(s,"di_comprendre"),sc(s,"di_idee")])},
+    {k:"interp",label:"l'interprétation des textes",v:avg([sc(s,"dn_interpreter"),sc(s,"di_interpreter")])},
+    {k:"reagir",label:"la réaction aux lectures",v:avg([sc(s,"dn_reagir"),sc(s,"di_reagir"),sc(s,"dn_apprecier")])}
+  ].map(n=>({...n,c:cat(n.v)})).filter(n=>n.c);
+}
+/* observations de l'entretien (paragraphe 2) */
+function entretien(s){
+  const oral=avg([meprSc(s.meprises),sc(s,"decodage"),sc(s,"groupes"),sc(s,"ponctuation"),sc(s,"expressive")]);
+  const mots=avg([sc(s,"def1"),sc(s,"def2"),sc(s,"def3")]);
+  const emo=avg([sc(s,"emotion"),s.indices?({"1":0.5,"2":1.2,"3":2,"4":2,"5":2,"plus":2})[s.indices]:null]);
+  return {oral:cat(oral),rappel:cat(sc(s,"rappel")),mots:cat(mots),emo:cat(emo)};
+}
+const OBJ={
+  narr:["la compréhension des histoires, en repérant les éléments importants du récit","lire une courte histoire ensemble et lui demander de la raconter dans ses mots"],
+  info:["la recherche de l'idée principale dans les textes informatifs","lire ensemble un court article et lui demander de dire en une phrase ce qu'on y apprend"],
+  interp:["l'interprétation des textes, en appuyant ses idées sur des indices","lui demander, pendant une lecture, ce que ressent un personnage et comment on le sait"],
+  reagir:["l'expression de ses réactions à ses lectures, en les justifiant","discuter de ses lectures et lui demander ce qui lui a plu ou déplu, et pourquoi"],
+  oral:["la lecture à voix haute, pour la rendre plus fluide","l'écouter lire à voix haute quelques minutes par jour"],
+  rappel:["le rappel des histoires lues, dans le bon ordre","lui demander de raconter dans ses mots le chapitre lu le soir"],
+  mots:["les stratégies pour comprendre les mots nouveaux","lui demander de deviner le sens d'un mot nouveau à l'aide de la phrase"],
+  emo:["l'interprétation des émotions des personnages","lui demander ce que ressent un personnage et quels mots du texte le montrent"],
+  def:["la compréhension des textes, en allant plus loin dans l'interprétation","lire quelques minutes chaque jour et discuter ensemble de ses lectures"]
+};
+
+/* ---------- version modèle ---------- */
+function templateComment(s){
+  const P=[];const lvl=s.niveau;const low_=lvl==="D"||lvl==="E";
+  // P1
+  const fs=FORCES.filter(f=>s[f[0]]).map(f=>f[2]);
+  let p1=fs.length?"Votre enfant "+joinFr(fs)+". ":"";
+  if(lvl){p1+=(low_?"Pour le moment, ses":"Ses")+" résultats en lecture "+levelPhrase(lvl)+". "}
+  const dep=depistage(s);
+  const F=dep.filter(n=>n.c==="force").slice(0,3).map(n=>n.label),V=dep.filter(n=>n.c==="voie").slice(0,3).map(n=>n.label),D=dep.filter(n=>n.c==="defi").slice(0,3).map(n=>n.label);
+  if(F.length){ const FA=joinFr(F.map(l=>"à "+l));
+    if(lvl==="A")p1+="Les notions liées "+FA+" sont solides. ";
+    else if(lvl==="B")p1+="Les notions liées "+FA+" sont bien comprises. ";
+    else p1+="Votre enfant montre des forces dans "+joinFr(F)+". "}
+  if(V.length)p1+=cap(joinFr(V))+(V.length>1?" sont":" est")+" en voie d'acquisition. ";
+  if(D.length)p1+=cap(joinFr(D))+(D.length>1?" représentent":" représente")+" encore un défi. ";
+  P.push(p1.trim());
+  // P2
+  const e=entretien(s);const cl=[];
+  ({force:()=>cl.push("Votre enfant lit à voix haute avec aisance, en respectant la ponctuation."),voie:()=>cl.push("La lecture à voix haute devient plus fluide, même si votre enfant lit encore parfois mot à mot."),defi:()=>cl.push("Lire à voix haute de façon fluide, par groupes de mots, demande encore des efforts.")}[e.oral]||(()=>{}))();
+  const narrWeak=dep.find(n=>n.k==="narr"&&n.c!=="force");
+  ({force:()=>cl.push("Le rappel de l'histoire est complet"+(narrWeak?", ce qui montre de beaux progrès.":".")),voie:()=>cl.push("En racontant l'histoire, votre enfant oublie parfois des éléments importants."),defi:()=>cl.push("Redire l'histoire dans ses mots est plus difficile pour le moment.")}[e.rappel]||(()=>{}))();
+  const st=STRATS.filter(x=>s[x[0]]).map(x=>STRAT_PARENT[x[0]]).slice(0,3);
+  if(e.mots==="force")cl.push("Pour trouver le sens d'un mot nouveau, votre enfant utilise efficacement des stratégies"+(st.length?" comme "+joinFr(st)+".":"."));
+  else if(e.mots==="voie")cl.push("Pour comprendre un mot nouveau, votre enfant commence à "+(st.length?joinFr(st):"utiliser des stratégies")+".");
+  else if(e.mots==="defi")cl.push("Trouver le sens d'un mot nouveau représente un défi"+(st.length?", même si votre enfant pense à "+joinFr(st):"")+".");
+  else if(st.length)cl.push("Pour comprendre un mot nouveau, votre enfant pense à "+joinFr(st)+".");
+  ({force:()=>cl.push("Les émotions des personnages sont bien interprétées à l'aide d'indices."),voie:()=>cl.push("Votre enfant nomme l'émotion d'un personnage, mais l'appuie encore sur peu d'indices du texte."),defi:()=>cl.push("Repérer les indices qui montrent l'émotion d'un personnage est plus difficile.")}[e.emo]||(()=>{}))();
+  HABITS.forEach(h=>{if(s[h[0]])cl.push(h[2])});
+  if(cl.length){cl[0]="Lors de l'entretien de lecture, "+low(cl[0]);P.push(cl.join(" "))}
+  // P3
+  const order=[...dep.filter(n=>n.c==="defi").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="defi"),...dep.filter(n=>n.c==="voie").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="voie")];
+  const key=order[0]||"def";
+  let obj="D'ici la mi-novembre, nous travaillerons surtout "+OBJ[key][0];
+  if(s.h_consigne&&(key==="narr"||key==="info"))obj+=", et nous aiderons votre enfant à comprendre une consigne avec moins d'aide";
+  P.push(obj+".");
+  if(s.absences)P.push("Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour.");
+  P.push("À la maison, vous pouvez "+OBJ[key][1]+".");
+  // en mathématique : remplacer « en lecture »
+  let txt=P.join("\n\n");
+  if((s.discipline||"").startsWith("Math"))txt=txt.replace("résultats en lecture","résultats en mathématique");
+  return txt;
+}
+
+/* ---------- prompt Claude ---------- */
+function v(s,k){return s[k]?s[k]:null}
+function describe(s){
+  const L=[];const add=(t,x)=>{if(x)L.push("- "+t+" : "+x)};
+  L.push("Année : "+(s.annee||"3e cycle"));
+  add("Niveau global (échelle de l'école)",s.niveau?s.niveau+" → « "+levelPhrase(s.niveau)+" »":"non indiqué");
+  add("Absences cochées",s.absences?"OUI":"non");
+  add("Forces personnelles cochées",FORCES.filter(f=>s[f[0]]).map(f=>f[1]).join(", ")||"aucune");
+  add("Habitudes cochées",HABITS.filter(h=>s[h[0]]).map(h=>h[1]).join(", ")||"aucune");
+  L.push("\nDÉPISTAGE – TEXTE NARRATIF (− défi, +/− en voie, + force)");
+  DN.forEach(d=>add(d[1]+" ("+d[2]+")",v(s,d[0])));add("Notes",s.dn_notes);
+  L.push("\nDÉPISTAGE – TEXTE INFORMATIF");
+  DI.forEach(d=>add(d[1]+" ("+d[2]+")",v(s,d[0])));add("Notes",s.di_notes);
+  L.push("\nENTRETIEN DE LECTURE (texte narratif)");
+  add("Raisons du choix du livre (nombre d'éléments)",v(s,"choix_raisons"));add("Livre à sa pointure (nombre d'éléments)",v(s,"pointure_raisons"));add("Notes choix",s.choix_notes);
+  add("Méprises sur 1 page",v(s,"meprises"));add("Décodage",v(s,"decodage"));add("Lecture par groupes de mots",v(s,"groupes"));add("Respect de la ponctuation",v(s,"ponctuation"));add("Lecture expressive",v(s,"expressive"));add("Notes lecture oralisée",s.oral_notes);
+  add("Rappel de l'histoire",v(s,"rappel"));
+  [1,2,3].forEach(n=>{if(s["def"+n])add("Mot "+n+(s["mot"+n]?" ("+s["mot"+n]+")":"")+" – définition plausible",s["def"+n])});
+  add("Stratégies observées",[...STRATS.filter(x=>s[x[0]]).map(x=>x[1]),s.s_autre].filter(Boolean).join(", "));
+  add("Notes compréhension",s.comp_notes);
+  add("Pertinence de l'émotion identifiée",v(s,"emotion"));add("Nombre d'indices mentionnés",v(s,"indices"));add("Notes interprétation",s.interp_notes);
+  add("\nNotes de l'enseignante",s.notes);
+  return L.join("\n");
+}
+function buildPrompt(s){
+  const math=(s.discipline||"").startsWith("Math");
+  const subj=math?"en mathématique (la lecture et la compréhension des problèmes)":"en lecture (français)";
+  return `Tu rédiges un commentaire au bulletin destiné aux parents d'un élève du 3e cycle du primaire au Québec (5e ou 6e année), ${subj}. Première communication de l'année, avec un bilan au bulletin de la mi-novembre.
+
+RÈGLES
+- Entre 950 et 1150 caractères, espaces comprises (limite absolue : 900 à 1200).
+- Ton bienveillant, professionnel, facile à comprendre pour un parent. Mots simples : pas de jargon (« méprises » → « erreurs de lecture », « fluidité » → « lire de façon fluide, par groupes de mots », « inférence » → « comprendre ce qui n'est pas écrit directement »).
+- Toujours écrire « votre enfant ». Texte neutre : jamais « il », « elle », « ils », « elles » pour l'élève, aucun adjectif ou participe accordé au masculin ou au féminin qui se rapporte à l'élève (écrire « fait preuve de persévérance » et non « persévérant »). La tournure impersonnelle « Il arrive que » est permise.
+- Aucun chiffre ni résultat chiffré (ni note, ni pourcentage, ni cote, ni nombre de méprises ou d'indices). Ne pas nommer le titre du livre.
+- Ne jamais écrire « Merci de votre collaboration ». Ne jamais écrire « maîtrisé ».
+- Niveau A : notions « solides ». Niveau B : notions « bien comprises ». Autres : « en voie d'acquisition », « fragile », « représente un défi ».
+- Nommer au maximum 2 ou 3 éléments par catégorie (forces, fragilités, défis), regroupés par grands domaines. Chaque élément n'apparaît qu'une seule fois, sans contradiction.
+- Ne jamais mentionner les sorties de classe, les distractions ni les comportements négatifs de façon directe.
+
+STRUCTURE (paragraphes séparés par une ligne vide)
+1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif et texte informatif) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
+2. ENTRETIEN DE LECTURE (paragraphe distinct) : décrire ce que l'entretien montre (lecture à voix haute, rappel de l'histoire, sens des mots nouveaux et stratégies, interprétation des émotions des personnages, choix de livres). Si un élément fragile au dépistage est réussi pendant l'entretien, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
+3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
+4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
+5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
+
+Avant de répondre, vérifie : niveau conforme, aucune contradiction ni répétition, aucun chiffre, aucun « il »/« elle », aucun remerciement, une seule recommandation, longueur respectée.
+Réponds UNIQUEMENT avec le commentaire, sans titre, sans guillemets, sans explication.
+
+DONNÉES DE L'ÉLÈVE (observations qualitatives de l'enseignante)
+${describe(s)}`;
+}
+
+/* ---------- vérification ---------- */
+function updateChecks(){
+  const t=$("#comment").value.trim(),s=getState(),n=t.length;
+  $("#count").textContent=n+(n>1?" caractères":" caractère");
+  $("#barFill").style.width=Math.min(100,n/1500*100)+"%";
+  $("#barFill").style.background=n>=900&&n<=1200?"var(--good)":n?"var(--warn)":"var(--accent)";
+  if(!t){$("#checks").innerHTML="";$("#btnFit").hidden=true;return}
+  const tl=t.toLowerCase();
+  const C=[];const ck=(ok,txt)=>C.push([ok,txt]);
+  ck(n>=900&&n<=1200,"Longueur entre 900 et 1200 caractères");
+  if(s.niveau)ck(tl.includes(levelPhrase(s.niveau)),"Niveau nommé : « "+levelPhrase(s.niveau)+" »");
+  else ck(false,"Choisir un niveau (A à E) dans la grille");
+  if(s.niveau==="D"||s.niveau==="E")ck(t.includes("Pour le moment,"),"Commence le niveau par « Pour le moment, »");
+  ck(tl.includes("votre enfant"),"Emploie « votre enfant »");
+  ck(!/\b(ils?|elles?)\b/i.test(t.replace(/\bil arrive\b/gi,"")),"Aucun « il » ou « elle »");
+  ck(!/\d/.test(t),"Aucun chiffre");
+  ck(!/maîtris/i.test(t),"Pas de « maîtrisé »");
+  ck(!/merci/i.test(t),"Aucun remerciement");
+  ck(t.includes("D'ici la mi-novembre")||t.includes("D’ici la mi-novembre"),"Objectif : « D'ici la mi-novembre… »");
+  const rec=(t.match(/À la maison, vous pouvez/g)||[]).length;ck(rec===1,"Une seule recommandation « À la maison, vous pouvez… »");
+  if(s.absences)ck(tl.includes("présence régulière"),"Phrase sur la présence (absences cochées)");
+  $("#checks").innerHTML=C.map(c=>'<li class="'+(c[0]?"":"bad")+'">'+c[1]+'</li>').join("");
+  $("#btnFit").hidden=!sample||(n>=900&&n<=1200);
+}
+$("#comment").addEventListener("input",()=>{updateChecks();save()});
+
+function setStatus(t){$("#status").textContent=t}
+$("#btnTpl").onclick=()=>{const s=getState();$("#comment").value=templateComment(s);updateChecks();save();
+  setStatus("Version modèle assemblée à partir des cases cochées. Vos notes en texte libre ne sont pas utilisées ici : relisez et ajustez.")};
+$("#btnCopy").onclick=async()=>{const ta=$("#comment");try{await navigator.clipboard.writeText(ta.value);setStatus("Commentaire copié.")}catch(e){ta.focus();ta.select();setStatus("Texte sélectionné : utilisez Ctrl+C ou Cmd+C.")}};
+
+/* ---------- Claude (sample) ---------- */
+let sample=null,ctl=null;
+const ERR={not_granted:"Accès à Claude refusé pour cette page. La version modèle reste disponible.",rate_limited:"Trop de demandes rapprochées. Réessayez dans un moment.",aborted:"Rédaction arrêtée."};
+async function ask(prompt,label){
+  const btns=[$("#btnAI"),$("#btnFit"),$("#btnTpl")];btns.forEach(b=>b.disabled=true);$("#btnStop").hidden=false;
+  ctl=new AbortController();setStatus(label);const ta=$("#comment");const before=ta.value;
+  try{const r=await sample(prompt,{signal:ctl.signal,cache:false,onText:({text})=>{ta.value=text;updateChecks()}});
+    ta.value=r.text.trim();setStatus("Commentaire rédigé. Relisez-le avant de le copier au bulletin.")}
+  catch(e){if(e&&e.text)ta.value=e.text;else if(!ta.value)ta.value=before;setStatus(ERR[e&&e.code]||"La rédaction n'a pas abouti. Réessayez ou utilisez la version modèle.");if(e&&e.code==="not_granted"){$("#btnAI").hidden=true}}
+  finally{btns.forEach(b=>b.disabled=false);$("#btnStop").hidden=true;updateChecks();save()}
+}
+$("#btnStop").onclick=()=>ctl&&ctl.abort();
+$("#btnAI").onclick=()=>ask(buildPrompt(getState()),"Claude rédige le commentaire… (quelques secondes)");
+$("#btnFit").onclick=()=>{const t=$("#comment").value.trim(),n=t.length;
+  ask(buildPrompt(getState())+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>1200?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre 950 et 1150 caractères en gardant la structure et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
+if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;setStatus("« Rédiger avec Claude » utilise vos cases et vos notes. « Version modèle » fonctionne sans Claude.");updateChecks()}}).catch(()=>{})}
+updateChecks();
+})();
+</script>
