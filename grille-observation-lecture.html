@@ -105,6 +105,7 @@ textarea{min-height:76px;resize:vertical}
 .dot{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px}
 .dot.ok{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
 .dot.todo{color:var(--muted);background:var(--paper);border:1px dashed var(--line)}
+.dot.revoir{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
 .dot.todo.focus{color:var(--warn);border-color:var(--warn)}
 .class-foot{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start;margin-top:12px}
 .class-foot details{flex:1 1 100%;order:3;display:grid;gap:8px}
@@ -435,6 +436,7 @@ const sortedIds=()=>Object.keys(students).sort((a,b)=>{const A=students[a],B=stu
 function visibleIds(){const f=$("#filtre").value,g=$("#groupe").value,q=$("#recherche").value.trim().toLowerCase();
   return sortedIds().filter(id=>(!f||!isDone(students[id],f))&&(!g||String(gradeOf(students[id]))===g)&&(!q||((students[id].nom||"")+" "+((students[id].state||{}).numero||"")).toLowerCase().includes(q)))}
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c])}
+const aRevoir=t=>HORS_LECTURE.test(t||"")||/\b(il|elle)s?\b/i.test(String(t||"").replace(/\bil arrive\b/gi,""));
 function renderClass(){
   const all=sortedIds(),vis=visibleIds(),f=$("#filtre").value;
   $("#classTitle").textContent=all.length?(all.length+" élève"+(all.length>1?"s":"")+(f?" · "+vis.length+" à compléter":"")):"Aucun élève";
@@ -446,7 +448,9 @@ function renderClass(){
     let head="";if(g!==grp){grp=g;const n=vis.filter(x=>gradeOf(students[x])===g).length;head='<tr class="grp"><th colspan="7">'+(g?g+"e année":"Année non indiquée")+' · '+n+' élève'+(n>1?"s":"")+'</th></tr>'}
     const no=parseNo((r.state||{}).numero);
     return head+'<tr data-id="'+id+'"'+(id===currentId?' class="current" aria-current="true"':'')+'><td><button type="button" class="namebtn"><span class="code">'+(no?no.code:"—")+'</span>'+(r.nom&&(!no||r.nom!==no.code)?' <span class="pn">'+esc(r.nom)+'</span>':'')+'</button></td><td class="lv">'+((r.state&&r.state.niveau)||"—")+'</td>'+
-    SECTIONS.slice(1).map(sec=>{const d=isDone(r,sec[0]);return '<td><span class="dot '+(d?"ok":"todo")+(sec[0]===f?" focus":"")+'">'+(d?"✓":"à faire")+'</span></td>'}).join("")+'</tr>'}).join("");
+    SECTIONS.slice(1).map(sec=>{const d=isDone(r,sec[0]);
+      if(sec[0]==="commentaire"&&d&&aRevoir(r.comment))return '<td><span class="dot revoir" title="Mentionne les accords ou la grammaire, ou emploie « il » / « elle » : à rédiger de nouveau">à revoir</span></td>';
+      return '<td><span class="dot '+(d?"ok":"todo")+(sec[0]===f?" focus":"")+'">'+(d?"✓":"à faire")+'</span></td>'}).join("")+'</tr>'}).join("");
 }
 $("#classTable").addEventListener("click",e=>{const tr=e.target.closest("tr[data-id]");if(tr)openStudent(tr.dataset.id,true)});
 $("#filtre").addEventListener("change",()=>{try{localStorage.setItem("grilleLecture.filtre",$("#filtre").value)}catch(e){}renderClass()});
@@ -785,7 +789,8 @@ function templateComment(s){
 
 /* ---------- prompt Claude ---------- */
 function v(s,k){return s[k]?s[k]:null}
-function describe(s){
+function describe(s0){
+  const s={...s0};NOTE_FIELDS.forEach(f=>{if(s[f[0]])s[f[0]]=sansGrammaire(s[f[0]])});
   const L=[];const add=(t,x)=>{if(x)L.push("- "+t+" : "+x)};
   L.push("Année : "+(s.annee||"3e cycle"));
   add("Niveau global (échelle de l'école)",s.niveau?s.niveau+" → « "+levelPhrase(s.niveau)+" »":"non indiqué");
@@ -822,7 +827,12 @@ function describe(s){
 }
 /* tous les commentaires écrits par l'enseignante : source principale */
 const NOTE_FIELDS=[["notes","Notes générales"],["adapt_notes","Adaptations"],["dn_notes","Dépistage – texte narratif"],["di_notes","Dépistage – texte informatif"],["q_notes","Questionnaire de compréhension"],["oral_notes","Fluidité (lecture à voix haute)"],["choix_notes","Choix du livre"],["comp_notes","Compréhension et mots nouveaux"],["interp_notes","Interprétation"]];
-function notesList(s){return NOTE_FIELDS.filter(f=>txt(s[f[0]])).map(f=>"- "+f[1]+" : « "+s[f[0]].trim()+" »")}
+/* les phrases qui parlent d'accords ou de grammaire sont retirées : ce n'est pas de la lecture */
+const HORS_LECTURE=/accord|grammai|orthograph|structure des phrases|genre, nombre/i;
+function sansGrammaire(t){return String(t||"").split(/(?<=[.!?])\s+|\n+/).map(x=>{if(!HORS_LECTURE.test(x))return x;
+  // garder le reste d'une énumération : « comprendre la structure des phrases et les accords et à repérer… »
+  return x.replace(/(à |de )?comprendre la structure des phrases et les accords,?( et)?|la structure des phrases|(et )?les accords|(la )?grammaire|(l')?orthographe|\s*\(genre, nombre\)/gi,"").replace(/\s{2,}/g," ").trim()}).filter(x=>x&&!HORS_LECTURE.test(x)).join(" ")}
+function notesList(s){return NOTE_FIELDS.map(f=>[f[1],sansGrammaire(s[f[0]])]).filter(f=>txt(f[1])).map(f=>"- "+f[0]+" : « "+f[1].trim()+" »")}
 function buildPrompt(s,asJson){
   const math=(s.discipline||"").startsWith("Math");
   const subj=math?"en mathématique (la lecture et la compréhension des problèmes)":"en lecture (français)";
