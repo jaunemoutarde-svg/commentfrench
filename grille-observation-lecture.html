@@ -93,17 +93,21 @@ textarea{min-height:76px;resize:vertical}
 #classTable tbody tr:hover{background:var(--paper)}
 #classTable tr.current{background:var(--accent-soft)}
 #classTable tr.grp th{position:static;background:var(--paper);color:var(--accent);font-family:var(--f-display);font-size:14px;letter-spacing:0;text-transform:none;padding:8px 10px;cursor:default}
-#classTable td.no{font-variant-numeric:tabular-nums;color:var(--muted);width:3.5em}
 #classTable tr.current .namebtn{font-weight:700}
 #classTable td.lv{font-family:var(--f-display);font-weight:700}
 #classTable td.empty{color:var(--muted);padding:16px 10px;cursor:default}
+.namebtn .code{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:700}
+.namebtn .pn{color:var(--muted)}
+.quick{display:flex;gap:6px;flex:1 1 280px}
+.quick input{flex:1;min-width:0}
+.quick button{min-width:44px;font-size:1.1rem}
 .namebtn{border:0;background:none;padding:0;color:var(--accent);text-align:left}
 .dot{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px}
 .dot.ok{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
 .dot.todo{color:var(--muted);background:var(--paper);border:1px dashed var(--line)}
 .dot.todo.focus{color:var(--warn);border-color:var(--warn)}
 .class-foot{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start;margin-top:12px}
-.class-foot details{flex:1 1 280px;display:grid;gap:8px}
+.class-foot details{flex:1 1 100%;order:3;display:grid;gap:8px}
 .class-foot details[open]{display:grid}
 .class-foot summary{cursor:pointer;color:var(--accent);font-weight:700}
 .class-foot details .field{margin:8px 0}
@@ -158,13 +162,14 @@ ul.checklist li.bad{color:var(--bad)}
           <option value="commentaire">Commentaire à rédiger</option>
         </select></label>
         <label class="field"><span>Groupe</span><select id="groupe"><option value="">5e et 6e année</option><option value="5">5e année seulement</option><option value="6">6e année seulement</option></select></label>
-        <label class="field"><span>Rechercher</span><input type="text" id="recherche" placeholder="Prénom"></label>
+        <label class="field"><span>Rechercher</span><input type="text" id="recherche" placeholder="Numéro ou prénom"></label>
       </div>
     </div>
-    <div class="tablewrap"><table id="classTable"><thead><tr><th>No</th><th>Élève</th><th>Niveau</th><th>Narratif</th><th>Informatif</th><th>Fluidité</th><th>Entretien</th><th>Commentaire</th></tr></thead><tbody></tbody></table></div>
+    <div class="tablewrap"><table id="classTable"><thead><tr><th>Élève</th><th>Niveau</th><th>Narratif</th><th>Informatif</th><th>Fluidité</th><th>Entretien</th><th>Commentaire</th></tr></thead><tbody></tbody></table></div>
     <div class="class-foot">
-      <details id="addBox"><summary>Ajouter des élèves</summary>
-        <label class="field"><span>Un élève par ligne : numéro puis prénom. Le chiffre avant le point est l'ordre dans la liste, celui après le point est l'année (5 ou 6).</span><textarea id="newNames" placeholder="1.5 Alex&#10;2.5 Samuel&#10;1.6 Léa"></textarea></label>
+      <div class="quick"><input type="text" id="quickAdd" placeholder="Numéro de l'élève (ex. 12.5)" aria-label="Numéro de l'élève"><button type="button" class="primary" id="btnQuick" aria-label="Ajouter l'élève">+</button></div>
+      <details id="addBox"><summary>Coller une liste d'élèves</summary>
+        <label class="field"><span>Le chiffre avant le point est l'ordre dans la liste, celui après le point est l'année (5 ou 6). Le prénom est facultatif.</span><textarea id="newNames" placeholder="1.5&#10;2.5&#10;3.5&#10;1.6&#10;2.6"></textarea></label>
         <button type="button" class="primary" id="btnAdd">Ajouter à la classe</button>
       </details>
       <div class="btnrow"><button type="button" id="btnNext">Élève suivant à compléter →</button><button type="button" id="btnDelete">Retirer cet élève</button></div>
@@ -345,11 +350,13 @@ function setInfo(t,bad){const el=$("#storeInfo");el.textContent=t;el.style.color
 
 /* un numéro écrit dans le prénom (ex. « 1.6 Alex ») passe dans le champ Numéro */
 function normalizeAll(){Object.keys(students).forEach(id=>{const r=students[id],st=r.state=r.state||{};
+  // ancien nom « Élève 1.5 » : l'élève est désigné par son numéro seulement
+  if(/^Élève\s+\d+\.[56]$/.test(r.nom||"")){r.nom=r.nom.replace(/^Élève\s+/,"");st.prenom=r.nom;persist(id,true)}
   const src=parseNo(r.nom)?r.nom:(parseNo(st.prenom)?st.prenom:null);if(!src)return;
   // un nom qui contient un ou plusieurs numéros (ex. liste collée sur une seule ligne) devient un élève par numéro
   const list=parseList(src);const first=list[0];
   if(!parseNo(st.numero)){st.numero=first.no.code;st.annee=first.no.annee+"e année"}
-  st.prenom=first.nom;r.nom=first.nom;persist(id,true);
+  if(st.prenom!==first.nom||r.nom!==first.nom||list.length>1){st.prenom=first.nom;r.nom=first.nom;persist(id,true)}
   list.slice(1).forEach(e=>{const nid=newId();students[nid]={nom:e.nom,state:{prenom:e.nom,numero:e.no.code,annee:e.no.annee+"e année",date:st.date||""},comment:"",updatedAt:Date.now()};persist(nid,true)})})}
 $("#prenom").addEventListener("change",()=>{const v=$("#prenom").value;if(!parseNo(v))return;const e=parseEntry(v);
   $("#prenom").value=e.nom;$("#numero").value=e.no.code;$("#annee").value=e.no.annee+"e année";save()});
@@ -383,26 +390,26 @@ function parseList(text){text=String(text||"");const re=/(\d+)\s*[.,]\s*([56])(?
   ms.forEach((m,i)=>{const no={ordre:+m[1],annee:+m[2],code:(+m[1])+"."+m[2]};
     const a=before?(i?ms[i-1].index+ms[i-1][0].length:0):m.index+m[0].length;
     const z=before?m.index:(i+1<ms.length?ms[i+1].index:text.length);
-    const nom=text.slice(a,z).replace(SEP,"").trim();out.push({nom:nom||("Élève "+no.code),no})});
+    const nom=text.slice(a,z).replace(SEP,"").trim();out.push({nom:nom||no.code,no})});
   return out}
 function gradeOf(r){const st=r.state||{},n=parseNo(st.numero);if(n)return n.annee;const m=String(st.annee||"").match(/^([56])/);return m?+m[1]:null}
 function ordreOf(r){const n=parseNo((r.state||{}).numero);return n?n.ordre:Infinity}
 const sortedIds=()=>Object.keys(students).sort((a,b)=>{const A=students[a],B=students[b];
   return (gradeOf(A)||9)-(gradeOf(B)||9)||ordreOf(A)-ordreOf(B)||(A.nom||"").localeCompare(B.nom||"","fr")});
 function visibleIds(){const f=$("#filtre").value,g=$("#groupe").value,q=$("#recherche").value.trim().toLowerCase();
-  return sortedIds().filter(id=>(!f||!isDone(students[id],f))&&(!g||String(gradeOf(students[id]))===g)&&(!q||(students[id].nom||"").toLowerCase().includes(q)))}
+  return sortedIds().filter(id=>(!f||!isDone(students[id],f))&&(!g||String(gradeOf(students[id]))===g)&&(!q||((students[id].nom||"")+" "+((students[id].state||{}).numero||"")).toLowerCase().includes(q)))}
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c])}
 function renderClass(){
   const all=sortedIds(),vis=visibleIds(),f=$("#filtre").value;
   $("#classTitle").textContent=all.length?(all.length+" élève"+(all.length>1?"s":"")+(f?" · "+vis.length+" à compléter":"")):"Aucun élève";
   const tb=$("#classTable tbody");
-  if(!all.length){tb.innerHTML='<tr><td colspan="8" class="empty">Ajoutez vos élèves avec « Ajouter des élèves » ci-dessous. Chaque profil est ensuite enregistré automatiquement.</td></tr>';$("#addBox").open=true;return}
-  if(!vis.length){tb.innerHTML='<tr><td colspan="8" class="empty">'+(f?"Tous les élèves ont cette section remplie.":"Aucun élève ne correspond à la recherche.")+'</td></tr>';return}
+  if(!all.length){tb.innerHTML='<tr><td colspan="7" class="empty">Ajoutez vos élèves ci-dessous : un numéro à la fois, ou collez toute la liste. Chaque profil est ensuite enregistré automatiquement.</td></tr>';$("#addBox").open=true;return}
+  if(!vis.length){tb.innerHTML='<tr><td colspan="7" class="empty">'+(f?"Tous les élèves ont cette section remplie.":"Aucun élève ne correspond à la recherche.")+'</td></tr>';return}
   let grp;
   tb.innerHTML=vis.map(id=>{const r=students[id],g=gradeOf(r);
-    let head="";if(g!==grp){grp=g;const n=vis.filter(x=>gradeOf(students[x])===g).length;head='<tr class="grp"><th colspan="8">'+(g?g+"e année":"Année non indiquée")+' · '+n+' élève'+(n>1?"s":"")+'</th></tr>'}
+    let head="";if(g!==grp){grp=g;const n=vis.filter(x=>gradeOf(students[x])===g).length;head='<tr class="grp"><th colspan="7">'+(g?g+"e année":"Année non indiquée")+' · '+n+' élève'+(n>1?"s":"")+'</th></tr>'}
     const no=parseNo((r.state||{}).numero);
-    return head+'<tr data-id="'+id+'"'+(id===currentId?' class="current" aria-current="true"':'')+'><td class="no">'+(no?no.code:"—")+'</td><td><button type="button" class="namebtn">'+esc(r.nom||"Sans nom")+'</button></td><td class="lv">'+((r.state&&r.state.niveau)||"—")+'</td>'+
+    return head+'<tr data-id="'+id+'"'+(id===currentId?' class="current" aria-current="true"':'')+'><td><button type="button" class="namebtn"><span class="code">'+(no?no.code:"—")+'</span>'+(r.nom&&(!no||r.nom!==no.code)?' <span class="pn">'+esc(r.nom)+'</span>':'')+'</button></td><td class="lv">'+((r.state&&r.state.niveau)||"—")+'</td>'+
     SECTIONS.slice(1).map(sec=>{const d=isDone(r,sec[0]);return '<td><span class="dot '+(d?"ok":"todo")+(sec[0]===f?" focus":"")+'">'+(d?"✓":"à faire")+'</span></td>'}).join("")+'</tr>'}).join("");
 }
 $("#classTable").addEventListener("click",e=>{const tr=e.target.closest("tr[data-id]");if(tr)openStudent(tr.dataset.id,true)});
@@ -424,13 +431,15 @@ function openStudent(id,scroll){
 function showExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=new Date().toISOString().slice(0,10);currentId=null;setState(d.state);$("#comment").value="";isExample=true;$("#exampleBanner").hidden=false;$("#curName").textContent="exemple";updateChecks();renderFluid();renderClass()}
 function showInitial(){if(currentId&&students[currentId])openStudent(currentId,false);else{const ids=sortedIds();if(ids.length)openStudent(ids[0],false);else showExample()}}
 
-$("#btnAdd").onclick=()=>{
-  const names=parseList($("#newNames").value);if(!names.length)return;
+function addList(text){
+  const names=parseList(text);if(!names.length)return false;
   const annee=$("#annee").value;let first=null;
   names.forEach(e=>{const id=newId();students[id]={nom:e.nom,state:{prenom:e.nom,numero:e.no?e.no.code:"",annee:e.no?e.no.annee+"e année":annee,date:new Date().toISOString().slice(0,10)},comment:"",updatedAt:Date.now()};first=first||id;persist(id,true)});
-  $("#newNames").value="";$("#addBox").open=false;
   if(!currentId)openStudent(sortedIds()[0],false);else renderClass();
-  setStatus(names.length+" élève"+(names.length>1?"s ajoutés":" ajouté")+" à la classe.")};
+  setStatus(names.length+" élève"+(names.length>1?"s ajoutés":" ajouté")+" à la classe.");return true}
+$("#btnAdd").onclick=()=>{if(addList($("#newNames").value)){$("#newNames").value="";$("#addBox").open=false}};
+$("#btnQuick").onclick=()=>{if(addList($("#quickAdd").value))$("#quickAdd").value=""};
+$("#quickAdd").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("#btnQuick").click()}});
 $("#btnNext").onclick=()=>{
   const f=$("#filtre").value;const ids=sortedIds().filter(id=>f?!isDone(students[id],f):SECTIONS.some(sec=>!isDone(students[id],sec[0])));
   if(!ids.length){setStatus(f?"Tous les élèves ont cette section remplie.":"Tous les profils sont complets.");return}
