@@ -345,8 +345,12 @@ function setInfo(t,bad){const el=$("#storeInfo");el.textContent=t;el.style.color
 
 /* un numéro écrit dans le prénom (ex. « 1.6 Alex ») passe dans le champ Numéro */
 function normalizeAll(){Object.keys(students).forEach(id=>{const r=students[id],st=r.state=r.state||{};
-  if(parseNo(st.numero))return;const src=parseNo(r.nom)?r.nom:(parseNo(st.prenom)?st.prenom:null);if(!src)return;
-  const e=parseEntry(src);st.numero=e.no.code;st.annee=e.no.annee+"e année";st.prenom=e.nom;r.nom=e.nom;persist(id,true)})}
+  const src=parseNo(r.nom)?r.nom:(parseNo(st.prenom)?st.prenom:null);if(!src)return;
+  // un nom qui contient un ou plusieurs numéros (ex. liste collée sur une seule ligne) devient un élève par numéro
+  const list=parseList(src);const first=list[0];
+  if(!parseNo(st.numero)){st.numero=first.no.code;st.annee=first.no.annee+"e année"}
+  st.prenom=first.nom;r.nom=first.nom;persist(id,true);
+  list.slice(1).forEach(e=>{const nid=newId();students[nid]={nom:e.nom,state:{prenom:e.nom,numero:e.no.code,annee:e.no.annee+"e année",date:st.date||""},comment:"",updatedAt:Date.now()};persist(nid,true)})})}
 $("#prenom").addEventListener("change",()=>{const v=$("#prenom").value;if(!parseNo(v))return;const e=parseEntry(v);
   $("#prenom").value=e.nom;$("#numero").value=e.no.code;$("#annee").value=e.no.annee+"e année";save()});
 function save(){
@@ -371,6 +375,16 @@ const isDone=(r,key)=>{const sec=SECTIONS.find(x=>x[0]===key);return sec[3](r.st
 /* numéro « ordre.année » : 1.5 = 1er de la liste, 5e année */
 function parseNo(t){const m=String(t||"").match(/(\d+)\s*[.,]\s*([56])(?!\d)/);return m?{ordre:+m[1],annee:+m[2],code:m[1]+"."+m[2],raw:m[0]}:null}
 function parseEntry(line){const n=parseNo(line);let nom=line;if(n)nom=line.replace(n.raw,"");nom=nom.replace(/^[\s\-–:.)]+|[\s\-–:(]+$/g,"").trim();return {nom:nom||line.trim(),no:n}}
+/* liste collée : accepte lignes, virgules ou points-virgules, numéro avant ou après le prénom */
+const SEP=/^[\s,;.\-–:()]+|[\s,;.\-–:()]+$/g;
+function parseList(text){text=String(text||"");const re=/(\d+)\s*[.,]\s*([56])(?!\d)/g;const ms=[...text.matchAll(re)];
+  if(!ms.length)return text.split(/[\n;,]+/).map(t=>t.replace(SEP,"").trim()).filter(Boolean).map(n=>({nom:n,no:null}));
+  const before=text.slice(0,ms[0].index).replace(SEP,"").trim();const out=[];
+  ms.forEach((m,i)=>{const no={ordre:+m[1],annee:+m[2],code:(+m[1])+"."+m[2]};
+    const a=before?(i?ms[i-1].index+ms[i-1][0].length:0):m.index+m[0].length;
+    const z=before?m.index:(i+1<ms.length?ms[i+1].index:text.length);
+    const nom=text.slice(a,z).replace(SEP,"").trim();out.push({nom:nom||("Élève "+no.code),no})});
+  return out}
 function gradeOf(r){const st=r.state||{},n=parseNo(st.numero);if(n)return n.annee;const m=String(st.annee||"").match(/^([56])/);return m?+m[1]:null}
 function ordreOf(r){const n=parseNo((r.state||{}).numero);return n?n.ordre:Infinity}
 const sortedIds=()=>Object.keys(students).sort((a,b)=>{const A=students[a],B=students[b];
@@ -411,7 +425,7 @@ function showExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=
 function showInitial(){if(currentId&&students[currentId])openStudent(currentId,false);else{const ids=sortedIds();if(ids.length)openStudent(ids[0],false);else showExample()}}
 
 $("#btnAdd").onclick=()=>{
-  const names=$("#newNames").value.split(/\n|;/).map(t=>t.trim()).filter(Boolean).map(parseEntry);if(!names.length)return;
+  const names=parseList($("#newNames").value);if(!names.length)return;
   const annee=$("#annee").value;let first=null;
   names.forEach(e=>{const id=newId();students[id]={nom:e.nom,state:{prenom:e.nom,numero:e.no?e.no.code:"",annee:e.no?e.no.annee+"e année":annee,date:new Date().toISOString().slice(0,10)},comment:"",updatedAt:Date.now()};first=first||id;persist(id,true)});
   $("#newNames").value="";$("#addBox").open=false;
