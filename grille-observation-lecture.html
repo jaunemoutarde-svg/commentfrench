@@ -712,6 +712,8 @@ const OBJ={
 
 /* ---------- version modèle ---------- */
 /* longueur visée (réglable, gardée dans ce navigateur) */
+const hasAdapt=s=>ADAPTS.some(a=>s[a[0]])||txt(s.adapt_notes);
+function effRange(s){const L=lenRange();return hasAdapt(s)?{min:L.min,max:L.max+350}:L}
 function lenRange(){const a=parseInt($("#lenMin").value,10),b=parseInt($("#lenMax").value,10);const mx=b>0?b:900;return {min:a>0&&a<mx?a:Math.round(mx*0.7),max:mx}}
 /* difficultés qui reviennent dans plusieurs évaluations (au moins deux sources cotées comme défi) */
 function recurrent(s){
@@ -752,8 +754,8 @@ function templateComment(s){
   if(rec.length||s.h_recurrent)add(2,"Les mêmes difficultés reviennent d'une évaluation à l'autre"+(rec.length?", surtout pour "+joinFr(rec.map(r=>r.nom)):"")+".",REQ);
   HABITS.forEach(h=>{if(s[h[0]]&&h[2])add(2,h[2],50)});
   const ad=ADAPTS.filter(a=>s[a[0]]).map(a=>a[2]);
-  if(ad.length)add(2,"Votre enfant bénéficie de mesures d'adaptation, comme "+joinFr(ad.slice(0,3))+", qui l'aident à montrer sa compréhension.",REQ);
-  const an=(s.adapt_notes||"").trim();if(an)add(2,/[.!?]$/.test(an)?an:an+".",REQ);
+  if(ad.length)add(2.5,"Votre enfant bénéficie de mesures d'adaptation, comme "+joinFr(ad.slice(0,3))+", qui l'aident à montrer sa compréhension.",REQ);
+  const an=(s.adapt_notes||"").trim();if(an)add(2.5,(/[.!?]$/.test(an)?an:an+".").replace(/\s*\n\s*/g," "),REQ);
   // P3 à P5
   const order=[...dep.filter(n=>n.c==="defi").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="defi"),...dep.filter(n=>n.c==="voie").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="voie")];
   const key=order[0]||"def";
@@ -761,9 +763,9 @@ function templateComment(s){
   if(s.absences)add(4,"Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour.",REQ);
   add(5,"À la maison, vous pouvez "+OBJ[key][1]+".",REQ);
   // assemblage, puis retrait des phrases les moins importantes jusqu'à respecter la longueur
-  const build=()=>[1,2,3,4,5].map(p=>{const t=items.filter(i=>i.p===p).map(i=>i.t);if(!t.length)return "";
+  const build=()=>[1,2,2.5,3,4,5].map(p=>{const t=items.filter(i=>i.p===p).map(i=>i.t);if(!t.length)return "";
     if(p===2)t[0]="Lors de nos lectures ensemble, "+low(t[0]);return t.join(" ")}).filter(Boolean).join("\n\n");
-  const max=lenRange().max;let txt=build();
+  const max=effRange(s).max;let txt=build();
   while(txt.length>max){const opt=items.filter(i=>i.prio<REQ);if(!opt.length)break;
     const minP=Math.min(...opt.map(i=>i.prio));const victim=opt.filter(i=>i.prio===minP).pop();items.splice(items.indexOf(victim),1);txt=build()}
   return txt;
@@ -823,7 +825,7 @@ COMMENTAIRES ÉCRITS DE L'ENSEIGNANTE (source principale)
 ${notesList(s).join("\n")||"(aucun commentaire écrit : appuie-toi sur les cases cochées)"}
 
 RÈGLES
-- COURT ET SIMPLE : entre ${lenRange().min} et ${lenRange().max} caractères, espaces comprises (jamais plus de ${lenRange().max}). Phrases courtes, une idée par phrase, mots de tous les jours. Garder l'essentiel : le niveau, les difficultés, l'objectif et la recommandation passent avant les détails.
+- COURT ET SIMPLE : entre ${effRange(s).min} et ${effRange(s).max} caractères, espaces comprises (jamais plus de ${effRange(s).max}). Phrases courtes, une idée par phrase, mots de tous les jours. Garder l'essentiel : le niveau, les difficultés, l'objectif et la recommandation passent avant les détails.
 - NOMMER CLAIREMENT LES DIFFICULTÉS : chaque élément coté « − » (défi) doit être nommé simplement, sans être caché par les formules positives (ex. « Trouver l'idée principale d'un texte reste difficile pour le moment. »). Les forces sont dites brièvement.
 - DIFFICULTÉS QUI REVIENNENT : ${(()=>{const r=recurrent(s);return r.length||s.h_recurrent?"OUI — dire simplement que les mêmes difficultés reviennent d'une évaluation à l'autre"+(r.length?" (surtout : "+r.map(x=>x.nom).join(", ")+")":"")+".":"non signalé, ne pas en parler."})()}
 - Tu écris À DES PARENTS, pas à des enseignants : mots de tous les jours, aucun terme pédagogique. Mots interdits : dépistage, entretien, inférence, interpréter/interprétation, méprise, fluidité, décodage, stratégie, compétence, rappel, critère, texte narratif, texte informatif. Dire plutôt « les histoires », « les textes documentaires », « raconter l'histoire dans ses mots », « lire à voix haute avec aisance », « comprendre ce qui n'est pas écrit directement ».
@@ -833,14 +835,14 @@ RÈGLES
 - Ne jamais écrire « Merci de votre collaboration ». Ne jamais écrire « maîtrisé ».
 - Niveau A : notions « solides ». Niveau B : notions « bien comprises ». Autres : « en voie d'acquisition », « fragile », « représente un défi ».
 - Nommer au maximum 2 ou 3 éléments par catégorie (forces, fragilités, défis), regroupés par grands domaines. Chaque élément n'apparaît qu'une seule fois, sans contradiction.
-- Parler SEULEMENT de l'élève et de sa capacité à lire. Ne jamais parler de coopération, de travail d'équipe, de collaboration, des pairs ou des camarades.
+- Parler SEULEMENT de l'élève et de sa capacité à lire. Ne jamais parler de coopération, de travail d'équipe, de collaboration, des pairs ou des camarades, SAUF pour décrire une mesure de soutien ou d'adaptation écrite par l'enseignante (ex. un pairage avec un lecteur expert) : celle-ci doit être nommée.
 - Juger les observations selon les attentes de l'année de l'élève (${s.annee||"3e cycle"}) : une même lecture n'a pas le même sens en 5e et en 6e année.
 - Ne jamais mentionner les sorties de classe, les distractions ni les comportements négatifs de façon directe.
 
 STRUCTURE (paragraphes séparés par une ligne vide)
 1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif, texte informatif et questionnaire de compréhension : utilise l'analyse par processus et les croisements, en mots de parents) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
 2. QUAND VOTRE ENFANT LIT (paragraphe distinct, deux ou trois phrases) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Pour la lecture à voix haute, analyse les cotes de fluidité ET le commentaire de l'enseignante, puis résume-les en UNE phrase simple pour les parents (ex. « lit à voix haute avec aisance », « lit encore parfois mot à mot », « gagnerait à faire une pause aux points »). Les difficultés cotées « − » y sont nommées. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
-${ADAPTS.some(a=>s[a[0]])||txt(s.adapt_notes)?"ADAPTATIONS (OBLIGATOIRE) : à la fin du paragraphe 2, nommer simplement les mesures d'adaptation dont bénéficie votre enfant et intégrer fidèlement le sens du commentaire de l'enseignante sur les adaptations.\n":""}3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
+${hasAdapt(s)?"2b. MESURES DE SOUTIEN ET D'ADAPTATION (OBLIGATOIRE, paragraphe distinct après le paragraphe 2) : reprendre CHAQUE élément du commentaire de l'enseignante sur les adaptations et des mesures cochées, en phrases simples pour les parents : quelle mesure, avec qui, pendant combien de temps, quand elle sera évaluée, et ce qui est attendu à la maison s'il y a lieu. Ne jamais raccourcir ce paragraphe pour respecter la longueur : raccourcis plutôt les autres. Si une recommandation pour la maison y figure, elle compte comme l'unique recommandation et le paragraphe 5 la reprend.\n":""}3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
 ${s.absences?"PORTRAIT INCOMPLET : à la fin du paragraphe 1, écrire « "+INCOMPLET+" » et rester prudent : présenter les observations comme partielles, sans conclure trop fermement.\n":""}4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
 5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
 
@@ -859,7 +861,7 @@ ${describe(s)}`;
 function updateChecks(){
   const t=$("#comment").value.trim(),s=getState(),n=t.length;
   $("#count").textContent=n+(n>1?" caractères":" caractère");
-  const LR=lenRange();$("#cible").textContent="cible : "+LR.min+" à "+LR.max;
+  const LR=effRange(s);$("#cible").textContent="cible : "+LR.min+" à "+LR.max+(hasAdapt(s)?" (adaptations incluses)":"");
   $("#barFill").style.width=Math.min(100,n/(LR.max*1.3)*100)+"%";
   $("#barFill").style.background=n>=LR.min&&n<=LR.max?"var(--good)":n?"var(--warn)":"var(--accent)";
   if(!t){$("#checks").innerHTML="";$("#btnFit").hidden=true;return}
@@ -874,12 +876,14 @@ function updateChecks(){
   ck(!/\d/.test(t),"Aucun chiffre");
   ck(!/maîtris/i.test(t),"Pas de « maîtrisé »");
   ck(!/merci/i.test(t),"Aucun remerciement");
-  ck(!/(équipe|coopér|collabor|pairs|camarade)/i.test(t),"Aucune mention de coopération ou de travail d'équipe");
+  if(!hasAdapt(s))ck(!/(équipe|coopér|collabor|pairs|camarade)/i.test(t),"Aucune mention de coopération ou de travail d'équipe");
   ck(!/(dépistage|entretien|inférence|interpréta|méprise|fluidité|décodage|stratégie|compétence|rappel|critère|narratif|informatif)/i.test(t),"Aucun mot d'enseignant (dépistage, inférence, fluidité…)");
   ck(t.includes("D'ici la mi-novembre")||t.includes("D’ici la mi-novembre"),"Objectif : « D'ici la mi-novembre… »");
   const rec=(t.match(/À la maison, vous pouvez/g)||[]).length;ck(rec===1,"Une seule recommandation « À la maison, vous pouvez… »");
   if(ADAPTS.some(a=>s[a[0]])||txt(s.adapt_notes))ck(/adapt/i.test(t)||(txt(s.adapt_notes)&&t.includes(s.adapt_notes.trim().slice(0,25))),"Mesures d'adaptation mentionnées");
   if(s.absences){ck(tl.includes("présence régulière"),"Phrase sur la présence (absences fréquentes)");ck(tl.includes("incomplet"),"Mention du portrait incomplet (absences fréquentes)")}
+  if(txt(s.adapt_notes)){const kw=(s.adapt_notes.toLowerCase().match(/[a-zàâçéèêëîïôûùüÿœ]{7,}/g)||[]).filter((w,i,a)=>a.indexOf(w)===i).slice(0,12);
+    const hit=kw.filter(w=>tl.includes(w.slice(0,6))).length;ck(kw.length===0||hit>=Math.min(3,Math.ceil(kw.length/3)),"Commentaire sur les adaptations repris (mots clés retrouvés : "+hit+"/"+kw.length+")")}
   $("#checks").innerHTML=C.map(c=>'<li class="'+(c[0]?"":"bad")+'">'+c[1]+'</li>').join("");
   $("#btnFit").hidden=!sample||(n>=LR.min&&n<=LR.max);
 }
@@ -927,7 +931,7 @@ function renderCross(){const r=currentId&&students[currentId],c=r&&r.cross,box=$
     return '<li><b><span class="tag '+l[0]+'">'+l[1]+'</span></b><span>« '+esc(x.commentaire||"")+' » → '+esc(x.cases||"")+'</span></li>'}).join("")+'</ul>'+
     (c.alertes.length?'<p class="sub-h">À vérifier</p><ul class="qlist">'+c.alertes.map(a=>'<li>'+esc(a)+'</li>').join("")+'</ul>':'')}
 $("#btnFit").onclick=()=>{const t=$("#comment").value.trim(),n=t.length;
-  ask(buildPrompt(getState(),false)+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>lenRange().max?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre "+lenRange().min+" et "+lenRange().max+" caractères en gardant le niveau, les difficultés, l'objectif, la recommandation et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
+  ask(buildPrompt(getState(),false)+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>effRange(getState()).max?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre "+effRange(getState()).min+" et "+effRange(getState()).max+" caractères en gardant le niveau, les difficultés, les mesures de soutien et d'adaptation au complet, l'objectif, la recommandation et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
 if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;$("#btnFluid").hidden=false;setStatus("« Rédiger avec Claude » part de vos commentaires écrits et les croise avec les cases. La version rapide n'utilise que les cases.");updateChecks()}}).catch(()=>{})}
 initClass();
 })();
