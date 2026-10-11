@@ -707,6 +707,8 @@ const OBJ={
   q_struct:["l'organisation des causes et des effets dans un texte","après une lecture, lui demander de nommer une cause et un effet"],
   mots:["la découverte du sens des mots nouveaux","chercher ensemble le sens d'un mot nouveau à partir de la phrase"],
   emo:["la compréhension des émotions des personnages","parler ensemble de ce que ressentent les personnages d'une histoire"],
+  livre:["le choix de livres un peu plus complexes, adaptés à son niveau","l'accompagner à la bibliothèque pour choisir un livre un peu plus long ou plus riche, puis en lire des passages ensemble"],
+  fluide:["la lecture à voix haute, pour qu'elle devienne plus fluide","relire plusieurs fois à voix haute un même court texte, quelques minutes par jour"],
   def:["le plaisir de lire des textes variés","lire quelques minutes chaque jour et en parler ensemble"]
 };
 
@@ -725,6 +727,15 @@ function recurrent(s){
     {k:"oral",nom:"lire à voix haute avec aisance",src:[avg([meprSc(s.meprises),sc(s,"decodage"),sc(s,"fl_autocorr")]),avg([sc(s,"groupes"),sc(s,"ponctuation")]),VIT[s.fl_vitesse]]}
   ].filter(t=>t.src.filter(weak).length>=2);
 }
+/* objectif du prochain mois : A-B → interprétation; C-D-E → fluidité ou livre plus complexe selon l'entretien */
+function objectifKey(s){const l=s.niveau;if(!l)return null;
+  if(l==="A"||l==="B")return "interp";
+  const e=entretien(s),choix=(s.choix_notes||"")+" "+(s.oral_notes||"");
+  if(e.oral&&e.oral!=="force")return "fluide";
+  if(e.oral==="force")return "livre";
+  // sans cotes : les commentaires de l'entretien décident (une lecture difficile passe avant le choix du livre)
+  if(/fluid|lent|mot à mot|saccad|ponctuation|intonation|méprise|d[ée]cod/i.test(choix))return "fluide";
+  return "livre";}
 function templateComment(s){
   const lvl=s.niveau,low_=lvl==="D"||lvl==="E",REQ=100;
   const math=(s.discipline||"").startsWith("Math");const dom=math?"en mathématique":"en lecture";
@@ -758,7 +769,7 @@ function templateComment(s){
   const an=(s.adapt_notes||"").trim();if(an)add(2.5,(/[.!?]$/.test(an)?an:an+".").replace(/\s*\n\s*/g," "),REQ);
   // P3 à P5
   const order=[...dep.filter(n=>n.c==="defi").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="defi"),...dep.filter(n=>n.c==="voie").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="voie")];
-  const key=order[0]||"def";
+  const key=objectifKey(s)||order[0]||"def";
   add(3,"D'ici la mi-novembre, nous travaillerons surtout "+OBJ[key][0]+".",REQ);
   if(s.absences)add(4,"Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour.",REQ);
   add(5,"À la maison, vous pouvez "+OBJ[key][1]+".",REQ);
@@ -837,12 +848,13 @@ RÈGLES
 - Nommer au maximum 2 ou 3 éléments par catégorie (forces, fragilités, défis), regroupés par grands domaines. Chaque élément n'apparaît qu'une seule fois, sans contradiction.
 - Parler SEULEMENT de l'élève et de sa capacité à lire. Ne jamais parler de coopération, de travail d'équipe, de collaboration, des pairs ou des camarades, SAUF pour décrire une mesure de soutien ou d'adaptation écrite par l'enseignante (ex. un pairage avec un lecteur expert) : celle-ci doit être nommée.
 - Juger les observations selon les attentes de l'année de l'élève (${s.annee||"3e cycle"}) : une même lecture n'a pas le même sens en 5e et en 6e année.
+- Ne jamais parler des accords, de la grammaire, de l'orthographe ni de la structure des phrases : ce n'est pas de la lecture. Ignore ces mentions dans les commentaires de l'enseignante.
 - Ne jamais mentionner les sorties de classe, les distractions ni les comportements négatifs de façon directe.
 
 STRUCTURE (paragraphes séparés par une ligne vide)
 1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif, texte informatif et questionnaire de compréhension : utilise l'analyse par processus et les croisements, en mots de parents) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
 2. QUAND VOTRE ENFANT LIT (paragraphe distinct, deux ou trois phrases) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Pour la lecture à voix haute, analyse les cotes de fluidité ET le commentaire de l'enseignante, puis résume-les en UNE phrase simple pour les parents (ex. « lit à voix haute avec aisance », « lit encore parfois mot à mot », « gagnerait à faire une pause aux points »). Les difficultés cotées « − » y sont nommées. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
-${hasAdapt(s)?"2b. MESURES DE SOUTIEN ET D'ADAPTATION (OBLIGATOIRE, paragraphe distinct après le paragraphe 2) : reprendre CHAQUE élément du commentaire de l'enseignante sur les adaptations et des mesures cochées, en phrases simples pour les parents : quelle mesure, avec qui, pendant combien de temps, quand elle sera évaluée, et ce qui est attendu à la maison s'il y a lieu. Ne jamais raccourcir ce paragraphe pour respecter la longueur : raccourcis plutôt les autres. Si une recommandation pour la maison y figure, elle compte comme l'unique recommandation et le paragraphe 5 la reprend.\n":""}3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
+${hasAdapt(s)?"2b. MESURES DE SOUTIEN ET D'ADAPTATION (OBLIGATOIRE, paragraphe distinct après le paragraphe 2) : reprendre CHAQUE élément du commentaire de l'enseignante sur les adaptations et des mesures cochées, en phrases simples pour les parents : quelle mesure, avec qui, pendant combien de temps, quand elle sera évaluée, et ce qui est attendu à la maison s'il y a lieu. Ne jamais raccourcir ce paragraphe pour respecter la longueur : raccourcis plutôt les autres. Si une recommandation pour la maison y figure, elle compte comme l'unique recommandation et le paragraphe 5 la reprend.\n":""}3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… ». ${s.niveau==="A"||s.niveau==="B"?"Niveau A ou B : l'objectif porte OBLIGATOIREMENT sur l'interprétation (comprendre ce qui n'est pas écrit directement, en s'appuyant sur des indices du texte).":s.niveau?"Niveau C, D ou E : l'objectif porte OBLIGATOIREMENT soit sur la fluidité de la lecture à voix haute, soit sur le choix de livres plus complexes. Décide d'après les commentaires et les cotes de l'entretien de lecture (choix du livre, livre à sa pointure, lecture à voix haute) : si la lecture à voix haute est difficile (erreurs, lenteur, mot à mot, ponctuation), choisis la fluidité, même si le livre choisi est trop facile; si la lecture est aisée, choisis des livres plus complexes. Suggestion calculée : "+(objectifKey(s)==="fluide"?"la fluidité":"un choix de livres plus complexes")+".":"lié au principal défi."} La recommandation pour la maison (paragraphe 5) est liée à cet objectif.
 ${s.absences?"PORTRAIT INCOMPLET : à la fin du paragraphe 1, écrire « "+INCOMPLET+" » et rester prudent : présenter les observations comme partielles, sans conclure trop fermement.\n":""}4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
 5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
 
@@ -876,6 +888,8 @@ function updateChecks(){
   ck(!/\d/.test(t),"Aucun chiffre");
   ck(!/maîtris/i.test(t),"Pas de « maîtrisé »");
   ck(!/merci/i.test(t),"Aucun remerciement");
+  ck(!/(accord|grammai|orthograph)/i.test(t),"Aucune mention des accords ou de la grammaire");
+  if(s.niveau){const k=objectifKey(s);ck(k==="interp"?/(pas écrit directement|interpr|indices|entre les lignes)/i.test(t):/(voix haute|fluide|livre)/i.test(t.slice(t.indexOf("mi-novembre"))),"Objectif selon le niveau : "+(k==="interp"?"interprétation (A-B)":k==="fluide"?"fluidité (C à E)":"livres plus complexes (C à E)"))}
   if(!hasAdapt(s))ck(!/(équipe|coopér|collabor|pairs|camarade)/i.test(t),"Aucune mention de coopération ou de travail d'équipe");
   ck(!/(dépistage|entretien|inférence|interpréta|méprise|fluidité|décodage|stratégie|compétence|rappel|critère|narratif|informatif)/i.test(t),"Aucun mot d'enseignant (dépistage, inférence, fluidité…)");
   ck(t.includes("D'ici la mi-novembre")||t.includes("D’ici la mi-novembre"),"Objectif : « D'ici la mi-novembre… »");
