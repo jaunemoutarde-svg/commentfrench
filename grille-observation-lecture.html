@@ -337,7 +337,7 @@ const LEVELS=[
 const FORCES=[["f_participe","Participe bien","participe bien en classe"],["f_persevere","Persévère","fait preuve de persévérance"],["f_autonome","Autonome","travaille de façon autonome"],["f_soigne","Travail soigné","remet un travail soigné"]];
 const HABITS=[["h_ecoute","Écoute ou implication à améliorer","Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser."],["h_temps","A besoin de plus de temps","Un peu plus de temps lui est parfois nécessaire pour terminer son travail."],["h_consigne","Commence avant d'avoir compris","Il arrive que votre enfant commence avant d'avoir bien saisi la consigne."],["absences","Absences fréquentes (portrait possiblement incomplet)",null],["h_recurrent","Les mêmes difficultés reviennent d'une évaluation à l'autre",null]];
 const ADAPTS=[["a_lecture","Lecture des questions à voix haute","la lecture des questions à voix haute"],["a_temps","Temps supplémentaire","du temps supplémentaire"],["a_techno","Outil d'aide technologique (synthèse vocale, etc.)","un outil d'aide technologique"],["a_calme","Local calme ou isolé","un local plus calme"],["a_consignes","Consignes reformulées ou découpées","des consignes reformulées"],["a_texte","Texte aéré ou agrandi","un texte aéré"],["a_pi","Plan d'intervention","un plan d'intervention"]];
-const INCOMPLET="En raison d'absences, ce portrait reste incomplet et sera précisé au cours de l'étape.";
+const INCOMPLET="En raison d'absences, ce portrait est encore incomplet.";
 const DN=[["dn_comprendre","Comprendre","Personnages, lieux, problème, événements, fin"],["dn_interpreter","Interpréter","Inférences, intentions et émotions des personnages"],["dn_reagir","Réagir","Exprimer et justifier ses réactions"],["dn_apprecier","Apprécier","Porter un jugement sur l'histoire"]];
 const DI=[["di_comprendre","Comprendre","Repérer les informations importantes"],["di_idee","Idée principale","Dégager l'idée principale d'un paragraphe"],["di_interpreter","Interpréter","Faire des liens et des inférences"],["di_reagir","Réagir","Exprimer ce qu'il retient, faire des liens personnels"]];
 const COUNT=["1","2","3","4","5","plus"];
@@ -503,9 +503,9 @@ const EXAMPLE={state:{date:"",annee:"5e année",discipline:"Français – lectur
  rappel:"+",mot1:"maugréer",def1:"+",mot2:"subterfuge",def2:"+/-",mot3:"pétrifié",def3:"+",s_contexte:true,s_relire:true,s_famille:true,comp_notes:"",
  emotion:"+",indices:"2",interp_notes:"Nomme la gêne du personnage et l'appuie sur deux indices du texte.",notes:""}};
 
-(function(){let L={};try{L=JSON.parse(localStorage.getItem("grilleLecture.longueur")||"{}")}catch(e){}
-  $("#lenMin").value=L.min||600;$("#lenMax").value=L.max||900;
-  ["#lenMin","#lenMax"].forEach(id=>$(id).addEventListener("input",()=>{try{localStorage.setItem("grilleLecture.longueur",JSON.stringify({min:$("#lenMin").value,max:$("#lenMax").value}))}catch(e){}updateChecks()}))})();
+(function(){let L={};try{L=JSON.parse(localStorage.getItem("grilleLecture.longueur.v2")||"{}")}catch(e){}
+  $("#lenMin").value=L.min||400;$("#lenMax").value=L.max||650;
+  ["#lenMin","#lenMax"].forEach(id=>$(id).addEventListener("input",()=>{try{localStorage.setItem("grilleLecture.longueur.v2",JSON.stringify({min:$("#lenMin").value,max:$("#lenMax").value}))}catch(e){}updateChecks()}))})();
 function initClass(){
   try{const f=localStorage.getItem("grilleLecture.filtre");if(f!=null)$("#filtre").value=f}catch(e){}
   const L=localLoad();
@@ -708,15 +708,15 @@ const OBJ={
   mots:["la découverte du sens des mots nouveaux","chercher ensemble le sens d'un mot nouveau à partir de la phrase"],
   emo:["la compréhension des émotions des personnages","parler ensemble de ce que ressentent les personnages d'une histoire"],
   livre:["le choix de livres un peu plus complexes, adaptés à son niveau","l'accompagner à la bibliothèque pour choisir un livre un peu plus long ou plus riche, puis en lire des passages ensemble"],
-  fluide:["la lecture à voix haute, pour qu'elle devienne plus fluide","relire plusieurs fois à voix haute un même court texte, quelques minutes par jour"],
+  fluide:["la lecture à voix haute, pour la rendre plus fluide","relire plusieurs fois à voix haute un même court texte, quelques minutes par jour"],
   def:["le plaisir de lire des textes variés","lire quelques minutes chaque jour et en parler ensemble"]
 };
 
 /* ---------- version modèle ---------- */
 /* longueur visée (réglable, gardée dans ce navigateur) */
 const hasAdapt=s=>ADAPTS.some(a=>s[a[0]])||txt(s.adapt_notes);
-function effRange(s){const L=lenRange();return hasAdapt(s)?{min:L.min,max:L.max+350}:L}
-function lenRange(){const a=parseInt($("#lenMin").value,10),b=parseInt($("#lenMax").value,10);const mx=b>0?b:900;return {min:a>0&&a<mx?a:Math.round(mx*0.7),max:mx}}
+function effRange(s){const L=lenRange();return hasAdapt(s)?{min:L.min,max:L.max+200}:L}
+function lenRange(){const a=parseInt($("#lenMin").value,10),b=parseInt($("#lenMax").value,10);const mx=b>0?b:650;return {min:a>0&&a<mx?a:Math.round(mx*0.7),max:mx}}
 /* difficultés qui reviennent dans plusieurs évaluations (au moins deux sources cotées comme défi) */
 function recurrent(s){
   const weak=v=>v!=null&&v<0.75;
@@ -743,9 +743,9 @@ function templateComment(s){
   // P1 : forces, niveau, puis les difficultés (toujours nommées)
   const fs=FORCES.filter(f=>s[f[0]]).map(f=>f[2]).slice(0,2);
   if(fs.length)add(1,"Votre enfant "+joinFr(fs)+".",40);
-  if(lvl)add(1,(low_?"Pour le moment, ses":"Ses")+" résultats "+dom+" "+levelPhrase(lvl)+".",REQ);
+  if(lvl)add(1,(fs.length?(low_?"Pour le moment, ses":"Ses"):(low_?"Pour le moment, les":"Les"))+" résultats "+(fs.length?"":"de votre enfant ")+dom+" "+levelPhrase(lvl)+".",REQ);
   const dep=depistage(s);
-  const F=dep.filter(n=>n.c==="force").slice(0,2).map(n=>n.label),V=dep.filter(n=>n.c==="voie").slice(0,2).map(n=>n.label),D=dep.filter(n=>n.c==="defi").map(n=>n.label);
+  const F=dep.filter(n=>n.c==="force").slice(0,2).map(n=>n.label),V=dep.filter(n=>n.c==="voie").slice(0,2).map(n=>n.label),D=dep.filter(n=>n.c==="defi").slice(0,2).map(n=>n.label);
   if(F.length){const x=joinFr(F);add(1,lvl==="A"?"Les notions pour "+x+" sont solides.":lvl==="B"?"Les notions pour "+x+" sont bien comprises.":"Votre enfant réussit bien à "+x+".",30)}
   if(V.length)add(1,"Votre enfant apprend encore "+joinFr(V.map(l=>"à "+l))+".",20);
   if(D.length)add(1,cap(joinFr(D))+(D.length>1?" restent difficiles":" reste difficile")+" pour le moment.",REQ);
@@ -762,7 +762,7 @@ function templateComment(s){
   };
   ["oral","rappel","mots","emo"].forEach(k=>{const c=e[k];if(c)add(2,C[k][c],c==="defi"?90:k==="oral"?35:c==="force"?25:15)});
   const rec=recurrent(s);
-  if(rec.length||s.h_recurrent)add(2,"Les mêmes difficultés reviennent d'une évaluation à l'autre"+(rec.length?", surtout pour "+joinFr(rec.map(r=>r.nom)):"")+".",REQ);
+  if(rec.length||s.h_recurrent)add(2,"Les mêmes difficultés reviennent d'une évaluation à l'autre.",REQ);
   HABITS.forEach(h=>{if(s[h[0]]&&h[2])add(2,h[2],50)});
   const ad=ADAPTS.filter(a=>s[a[0]]).map(a=>a[2]);
   if(ad.length)add(2.5,"Votre enfant bénéficie de mesures d'adaptation, comme "+joinFr(ad.slice(0,3))+", qui l'aident à montrer sa compréhension.",REQ);
@@ -779,6 +779,7 @@ function templateComment(s){
   const max=effRange(s).max;let txt=build();
   while(txt.length>max){const opt=items.filter(i=>i.prio<REQ);if(!opt.length)break;
     const minP=Math.min(...opt.map(i=>i.prio));const victim=opt.filter(i=>i.prio===minP).pop();items.splice(items.indexOf(victim),1);txt=build()}
+  if(!/votre enfant/i.test(txt))txt=txt.replace(/(Pour le moment, s|S)es résultats/,(m,g)=>(g==="S"?"Les":"Pour le moment, les")+" résultats de votre enfant");
   return txt;
 }
 
@@ -836,7 +837,7 @@ COMMENTAIRES ÉCRITS DE L'ENSEIGNANTE (source principale)
 ${notesList(s).join("\n")||"(aucun commentaire écrit : appuie-toi sur les cases cochées)"}
 
 RÈGLES
-- COURT ET SIMPLE : entre ${effRange(s).min} et ${effRange(s).max} caractères, espaces comprises (jamais plus de ${effRange(s).max}). Phrases courtes, une idée par phrase, mots de tous les jours. Garder l'essentiel : le niveau, les difficultés, l'objectif et la recommandation passent avant les détails.
+- COURT ET SIMPLE : entre ${effRange(s).min} et ${effRange(s).max} caractères, espaces comprises (jamais plus de ${effRange(s).max}). Un parent doit pouvoir le lire en moins d'une minute. Phrases courtes (15 mots au plus), une idée par phrase, mots de tous les jours. Garder SEULEMENT l'essentiel : une force, le niveau, les deux principales difficultés au plus, l'objectif et la recommandation. Laisser tomber les détails, les exemples et les nuances secondaires.
 - NOMMER CLAIREMENT LES DIFFICULTÉS : chaque élément coté « − » (défi) doit être nommé simplement, sans être caché par les formules positives (ex. « Trouver l'idée principale d'un texte reste difficile pour le moment. »). Les forces sont dites brièvement.
 - DIFFICULTÉS QUI REVIENNENT : ${(()=>{const r=recurrent(s);return r.length||s.h_recurrent?"OUI — dire simplement que les mêmes difficultés reviennent d'une évaluation à l'autre"+(r.length?" (surtout : "+r.map(x=>x.nom).join(", ")+")":"")+".":"non signalé, ne pas en parler."})()}
 - Tu écris À DES PARENTS, pas à des enseignants : mots de tous les jours, aucun terme pédagogique. Mots interdits : dépistage, entretien, inférence, interpréter/interprétation, méprise, fluidité, décodage, stratégie, compétence, rappel, critère, texte narratif, texte informatif. Dire plutôt « les histoires », « les textes documentaires », « raconter l'histoire dans ses mots », « lire à voix haute avec aisance », « comprendre ce qui n'est pas écrit directement ».
@@ -853,8 +854,8 @@ RÈGLES
 
 STRUCTURE (paragraphes séparés par une ligne vide)
 1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif, texte informatif et questionnaire de compréhension : utilise l'analyse par processus et les croisements, en mots de parents) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
-2. QUAND VOTRE ENFANT LIT (paragraphe distinct, deux ou trois phrases) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Pour la lecture à voix haute, analyse les cotes de fluidité ET le commentaire de l'enseignante, puis résume-les en UNE phrase simple pour les parents (ex. « lit à voix haute avec aisance », « lit encore parfois mot à mot », « gagnerait à faire une pause aux points »). Les difficultés cotées « − » y sont nommées. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
-${hasAdapt(s)?"2b. MESURES DE SOUTIEN ET D'ADAPTATION (OBLIGATOIRE, paragraphe distinct après le paragraphe 2) : reprendre CHAQUE élément du commentaire de l'enseignante sur les adaptations et des mesures cochées, en phrases simples pour les parents : quelle mesure, avec qui, pendant combien de temps, quand elle sera évaluée, et ce qui est attendu à la maison s'il y a lieu. Ne jamais raccourcir ce paragraphe pour respecter la longueur : raccourcis plutôt les autres. Si une recommandation pour la maison y figure, elle compte comme l'unique recommandation et le paragraphe 5 la reprend.\n":""}3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… ». ${s.niveau==="A"||s.niveau==="B"?"Niveau A ou B : l'objectif porte OBLIGATOIREMENT sur l'interprétation (comprendre ce qui n'est pas écrit directement, en s'appuyant sur des indices du texte).":s.niveau?"Niveau C, D ou E : l'objectif porte OBLIGATOIREMENT soit sur la fluidité de la lecture à voix haute, soit sur le choix de livres plus complexes. Décide d'après les commentaires et les cotes de l'entretien de lecture (choix du livre, livre à sa pointure, lecture à voix haute) : si la lecture à voix haute est difficile (erreurs, lenteur, mot à mot, ponctuation), choisis la fluidité, même si le livre choisi est trop facile; si la lecture est aisée, choisis des livres plus complexes. Suggestion calculée : "+(objectifKey(s)==="fluide"?"la fluidité":"un choix de livres plus complexes")+".":"lié au principal défi."} La recommandation pour la maison (paragraphe 5) est liée à cet objectif.
+2. QUAND VOTRE ENFANT LIT (paragraphe distinct, UNE ou DEUX phrases au plus) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Pour la lecture à voix haute, analyse les cotes de fluidité ET le commentaire de l'enseignante, puis résume-les en UNE phrase simple pour les parents (ex. « lit à voix haute avec aisance », « lit encore parfois mot à mot », « gagnerait à faire une pause aux points »). Les difficultés cotées « − » y sont nommées. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
+${hasAdapt(s)?"2b. MESURES DE SOUTIEN ET D'ADAPTATION (OBLIGATOIRE, paragraphe distinct après le paragraphe 2) : résumer en DEUX phrases simples le commentaire de l'enseignante sur les adaptations et les mesures cochées, en gardant les éléments clés : quelle mesure, avec qui, jusqu'à quand (bilan) et ce qui est attendu à la maison s'il y a lieu. Ne jamais raccourcir ce paragraphe pour respecter la longueur : raccourcis plutôt les autres. Si une recommandation pour la maison y figure, elle compte comme l'unique recommandation et le paragraphe 5 la reprend.\n":""}3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… ». ${s.niveau==="A"||s.niveau==="B"?"Niveau A ou B : l'objectif porte OBLIGATOIREMENT sur l'interprétation (comprendre ce qui n'est pas écrit directement, en s'appuyant sur des indices du texte).":s.niveau?"Niveau C, D ou E : l'objectif porte OBLIGATOIREMENT soit sur la fluidité de la lecture à voix haute, soit sur le choix de livres plus complexes. Décide d'après les commentaires et les cotes de l'entretien de lecture (choix du livre, livre à sa pointure, lecture à voix haute) : si la lecture à voix haute est difficile (erreurs, lenteur, mot à mot, ponctuation), choisis la fluidité, même si le livre choisi est trop facile; si la lecture est aisée, choisis des livres plus complexes. Suggestion calculée : "+(objectifKey(s)==="fluide"?"la fluidité":"un choix de livres plus complexes")+".":"lié au principal défi."} La recommandation pour la maison (paragraphe 5) est liée à cet objectif.
 ${s.absences?"PORTRAIT INCOMPLET : à la fin du paragraphe 1, écrire « "+INCOMPLET+" » et rester prudent : présenter les observations comme partielles, sans conclure trop fermement.\n":""}4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
 5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
 
