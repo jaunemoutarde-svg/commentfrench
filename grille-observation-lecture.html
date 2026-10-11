@@ -201,7 +201,7 @@ ul.checklist li.bad{color:var(--bad)}
         </div>
         <p class="status" id="status">« Version modèle » assemble un commentaire à partir des cases cochées.</p>
         <textarea id="comment" aria-label="Commentaire aux parents"></textarea>
-        <div class="meter"><span id="count">0 caractère</span><span>cible : 900 à 1200</span></div>
+        <div class="meter"><span id="count">0 caractère</span><span>cible : 900 à 1000 (max 1200)</span></div>
         <div class="bar"><span class="zone"></span><i id="barFill" style="width:0"></i></div>
         <div class="btnrow"><button type="button" id="btnFit" hidden>Ajuster la longueur</button></div>
         <ul class="checklist" id="checks"></ul>
@@ -286,13 +286,13 @@ const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
 const low=t=>t.charAt(0).toLowerCase()+t.slice(1);
 const levelPhrase=k=>(LEVELS.find(l=>l[0]===k)||[])[1];
 
-/* notions du dépistage (paragraphe 1) */
+/* notions du dépistage (paragraphe 1), en mots de parents */
 function depistage(s){
   return [
-    {k:"narr",label:"la compréhension des histoires",v:avg([sc(s,"dn_comprendre")])},
-    {k:"info",label:"la compréhension des textes informatifs",v:avg([sc(s,"di_comprendre"),sc(s,"di_idee")])},
-    {k:"interp",label:"l'interprétation des textes",v:avg([sc(s,"dn_interpreter"),sc(s,"di_interpreter")])},
-    {k:"reagir",label:"la réaction aux lectures",v:avg([sc(s,"dn_reagir"),sc(s,"di_reagir"),sc(s,"dn_apprecier")])}
+    {k:"narr",label:"comprendre les histoires",v:avg([sc(s,"dn_comprendre")])},
+    {k:"info",label:"trouver l'information importante dans un texte documentaire",v:avg([sc(s,"di_comprendre"),sc(s,"di_idee")])},
+    {k:"interp",label:"saisir ce qui n'est pas écrit directement",v:avg([sc(s,"dn_interpreter"),sc(s,"di_interpreter")])},
+    {k:"reagir",label:"donner son avis sur ses lectures",v:avg([sc(s,"dn_reagir"),sc(s,"di_reagir"),sc(s,"dn_apprecier")])}
   ].map(n=>({...n,c:cat(n.v)})).filter(n=>n.c);
 }
 /* observations de l'entretien (paragraphe 2) */
@@ -303,58 +303,57 @@ function entretien(s){
   return {oral:cat(oral),rappel:cat(sc(s,"rappel")),mots:cat(mots),emo:cat(emo)};
 }
 const OBJ={
-  narr:["la compréhension des histoires, en repérant les éléments importants du récit","lire une courte histoire ensemble et lui demander de la raconter dans ses mots"],
-  info:["la recherche de l'idée principale dans les textes informatifs","lire ensemble un court article et lui demander de dire en une phrase ce qu'on y apprend"],
-  interp:["l'interprétation des textes, en appuyant ses idées sur des indices","lui demander, pendant une lecture, ce que ressent un personnage et comment on le sait"],
-  reagir:["l'expression de ses réactions à ses lectures, en les justifiant","discuter de ses lectures et lui demander ce qui lui a plu ou déplu, et pourquoi"],
-  oral:["la lecture à voix haute, pour la rendre plus fluide","l'écouter lire à voix haute quelques minutes par jour"],
-  rappel:["le rappel des histoires lues, dans le bon ordre","lui demander de raconter dans ses mots le chapitre lu le soir"],
-  mots:["les stratégies pour comprendre les mots nouveaux","lui demander de deviner le sens d'un mot nouveau à l'aide de la phrase"],
-  emo:["l'interprétation des émotions des personnages","lui demander ce que ressent un personnage et quels mots du texte le montrent"],
-  def:["la compréhension des textes, en allant plus loin dans l'interprétation","lire quelques minutes chaque jour et discuter ensemble de ses lectures"]
+  narr:["la compréhension des histoires","lire une courte histoire ensemble, puis lui demander de vous la raconter"],
+  info:["la recherche de l'information importante dans un texte documentaire","lire ensemble un court article et lui demander ce qu'on y apprend"],
+  interp:["la compréhension de ce qui n'est pas écrit directement dans un texte","lui demander, pendant une lecture, comment se sent un personnage et comment on le devine"],
+  reagir:["l'expression de son avis sur ses lectures","parler ensemble de ses lectures et lui demander ce qui lui a plu"],
+  oral:["la lecture à voix haute","l'écouter lire à voix haute quelques minutes par jour"],
+  rappel:["la capacité à raconter une histoire dans l'ordre","lui demander de vous raconter le chapitre lu"],
+  mots:["la découverte du sens des mots nouveaux","chercher ensemble le sens d'un mot nouveau à partir de la phrase"],
+  emo:["la compréhension des émotions des personnages","parler ensemble de ce que ressentent les personnages d'une histoire"],
+  def:["le plaisir de lire des textes variés","lire quelques minutes chaque jour et en parler ensemble"]
 };
 
 /* ---------- version modèle ---------- */
 function templateComment(s){
   const P=[];const lvl=s.niveau;const low_=lvl==="D"||lvl==="E";
-  // P1
+  const math=(s.discipline||"").startsWith("Math");const dom=math?"en mathématique":"en lecture";
+  // P1 : forces et niveau
   const fs=FORCES.filter(f=>s[f[0]]).map(f=>f[2]);
   let p1=fs.length?"Votre enfant "+joinFr(fs)+". ":"";
-  if(lvl){p1+=(low_?"Pour le moment, ses":"Ses")+" résultats en lecture "+levelPhrase(lvl)+". "}
+  if(lvl)p1+=(low_?"Pour le moment, ses":"Ses")+" résultats "+dom+" "+levelPhrase(lvl)+". ";
   const dep=depistage(s);
-  const F=dep.filter(n=>n.c==="force").slice(0,3).map(n=>n.label),V=dep.filter(n=>n.c==="voie").slice(0,3).map(n=>n.label),D=dep.filter(n=>n.c==="defi").slice(0,3).map(n=>n.label);
-  if(F.length){ const FA=joinFr(F.map(l=>"à "+l));
-    if(lvl==="A")p1+="Les notions liées "+FA+" sont solides. ";
-    else if(lvl==="B")p1+="Les notions liées "+FA+" sont bien comprises. ";
-    else p1+="Votre enfant montre des forces dans "+joinFr(F)+". "}
-  if(V.length)p1+=cap(joinFr(V))+(V.length>1?" sont":" est")+" en voie d'acquisition. ";
-  if(D.length)p1+=cap(joinFr(D))+(D.length>1?" représentent":" représente")+" encore un défi. ";
+  const F=dep.filter(n=>n.c==="force").slice(0,2).map(n=>n.label),V=dep.filter(n=>n.c==="voie").slice(0,2).map(n=>n.label),D=dep.filter(n=>n.c==="defi").slice(0,2).map(n=>n.label);
+  if(F.length){const x=joinFr(F);
+    if(lvl==="A")p1+="Les notions pour "+x+" sont solides. ";
+    else if(lvl==="B")p1+="Les notions pour "+x+" sont bien comprises. ";
+    else p1+="Votre enfant réussit bien à "+x+". "}
+  if(V.length)p1+="Votre enfant apprend encore à "+joinFr(V)+". ";
+  if(D.length)p1+=cap(joinFr(D))+" lui demande"+(D.length>1?"nt":"")+" encore des efforts. ";
   P.push(p1.trim());
-  // P2
+  // P2 : ce qu'on observe quand l'enfant lit (trois phrases au plus)
   const e=entretien(s);const cl=[];
-  ({force:()=>cl.push("Votre enfant lit à voix haute avec aisance, en respectant la ponctuation."),voie:()=>cl.push("La lecture à voix haute devient plus fluide, même si votre enfant lit encore parfois mot à mot."),defi:()=>cl.push("Lire à voix haute de façon fluide, par groupes de mots, demande encore des efforts.")}[e.oral]||(()=>{}))();
   const narrWeak=dep.find(n=>n.k==="narr"&&n.c!=="force");
-  ({force:()=>cl.push("Le rappel de l'histoire est complet"+(narrWeak?", ce qui montre de beaux progrès.":".")),voie:()=>cl.push("En racontant l'histoire, votre enfant oublie parfois des éléments importants."),defi:()=>cl.push("Redire l'histoire dans ses mots est plus difficile pour le moment.")}[e.rappel]||(()=>{}))();
-  const st=STRATS.filter(x=>s[x[0]]).map(x=>STRAT_PARENT[x[0]]).slice(0,3);
-  if(e.mots==="force")cl.push("Pour trouver le sens d'un mot nouveau, votre enfant utilise efficacement des stratégies"+(st.length?" comme "+joinFr(st)+".":"."));
-  else if(e.mots==="voie")cl.push("Pour comprendre un mot nouveau, votre enfant commence à "+(st.length?joinFr(st):"utiliser des stratégies")+".");
-  else if(e.mots==="defi")cl.push("Trouver le sens d'un mot nouveau représente un défi"+(st.length?", même si votre enfant pense à "+joinFr(st):"")+".");
-  else if(st.length)cl.push("Pour comprendre un mot nouveau, votre enfant pense à "+joinFr(st)+".");
-  ({force:()=>cl.push("Les émotions des personnages sont bien interprétées à l'aide d'indices."),voie:()=>cl.push("Votre enfant nomme l'émotion d'un personnage, mais l'appuie encore sur peu d'indices du texte."),defi:()=>cl.push("Repérer les indices qui montrent l'émotion d'un personnage est plus difficile.")}[e.emo]||(()=>{}))();
-  HABITS.forEach(h=>{if(s[h[0]])cl.push(h[2])});
-  if(cl.length){cl[0]="Lors de l'entretien de lecture, "+low(cl[0]);P.push(cl.join(" "))}
-  // P3
+  const st=STRATS.filter(x=>s[x[0]]).map(x=>STRAT_PARENT[x[0]]).slice(0,2);
+  const C={
+    oral:{force:"Votre enfant lit à voix haute avec aisance.",voie:"Sa lecture à voix haute devient de plus en plus fluide.",defi:"Lire à voix haute avec aisance demande encore de la pratique."},
+    rappel:{force:"Votre enfant raconte bien l'histoire dans ses mots"+(narrWeak?", un beau progrès.":"."),voie:"En racontant l'histoire, votre enfant oublie parfois des moments importants.",defi:"Raconter l'histoire dans ses mots est encore difficile."},
+    mots:{force:"Devant un mot nouveau, votre enfant a de bons réflexes"+(st.length?", comme "+joinFr(st)+".":"."),voie:"Devant un mot nouveau, votre enfant commence à "+(st.length?joinFr(st):"chercher des indices")+".",defi:"Trouver le sens d'un mot nouveau est encore difficile."},
+    emo:{force:"Votre enfant comprend aussi très bien ce que ressentent les personnages.",voie:"Votre enfant commence à expliquer ce que ressentent les personnages.",defi:"Expliquer ce que ressentent les personnages est plus difficile pour le moment."}
+  };
+  // d'abord les réussites, puis une prochaine étape
+  ["oral","rappel","mots","emo"].forEach(k=>{if(e[k]==="force")cl.push(C[k].force)});
+  ["oral","rappel","mots","emo"].forEach(k=>{if(e[k]&&e[k]!=="force")cl.push(C[k][e[k]])});
+  const p2=cl.slice(0,3);
+  HABITS.forEach(h=>{if(s[h[0]])p2.push(h[2])});
+  if(p2.length){p2[0]="Lors de nos lectures ensemble, "+low(p2[0]);P.push(p2.join(" "))}
+  // P3 à P5
   const order=[...dep.filter(n=>n.c==="defi").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="defi"),...dep.filter(n=>n.c==="voie").map(n=>n.k),...Object.keys(e).filter(k=>e[k]==="voie")];
   const key=order[0]||"def";
-  let obj="D'ici la mi-novembre, nous travaillerons surtout "+OBJ[key][0];
-  if(s.h_consigne&&(key==="narr"||key==="info"))obj+=", et nous aiderons votre enfant à comprendre une consigne avec moins d'aide";
-  P.push(obj+".");
+  P.push("D'ici la mi-novembre, nous travaillerons surtout "+OBJ[key][0]+".");
   if(s.absences)P.push("Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour.");
   P.push("À la maison, vous pouvez "+OBJ[key][1]+".");
-  // en mathématique : remplacer « en lecture »
-  let txt=P.join("\n\n");
-  if((s.discipline||"").startsWith("Math"))txt=txt.replace("résultats en lecture","résultats en mathématique");
-  return txt;
+  return P.join("\n\n");
 }
 
 /* ---------- prompt Claude ---------- */
@@ -387,8 +386,9 @@ function buildPrompt(s){
   return `Tu rédiges un commentaire au bulletin destiné aux parents d'un élève du 3e cycle du primaire au Québec (5e ou 6e année), ${subj}. Première communication de l'année, avec un bilan au bulletin de la mi-novembre.
 
 RÈGLES
-- Entre 950 et 1150 caractères, espaces comprises (limite absolue : 900 à 1200).
-- Ton bienveillant, professionnel, facile à comprendre pour un parent. Mots simples : pas de jargon (« méprises » → « erreurs de lecture », « fluidité » → « lire de façon fluide, par groupes de mots », « inférence » → « comprendre ce qui n'est pas écrit directement »).
+- CONCIS : entre 900 et 1000 caractères, espaces comprises (jamais plus de 1200). Phrases courtes, une idée par phrase.
+- Tu écris À DES PARENTS, pas à des enseignants : mots de tous les jours, aucun terme pédagogique. Mots interdits : dépistage, entretien, inférence, interpréter/interprétation, méprise, fluidité, décodage, stratégie, compétence, rappel, critère, texte narratif, texte informatif. Dire plutôt « les histoires », « les textes documentaires », « raconter l'histoire dans ses mots », « lire à voix haute avec aisance », « comprendre ce qui n'est pas écrit directement ».
+- Ton TRÈS bienveillant, chaleureux et encourageant : commencer par le positif, présenter chaque difficulté comme une prochaine étape (« apprend encore à », « demande encore des efforts »), jamais comme un manque.
 - Toujours écrire « votre enfant ». Texte neutre : jamais « il », « elle », « ils », « elles » pour l'élève, aucun adjectif ou participe accordé au masculin ou au féminin qui se rapporte à l'élève (écrire « fait preuve de persévérance » et non « persévérant »). La tournure impersonnelle « Il arrive que » est permise.
 - Aucun chiffre ni résultat chiffré (ni note, ni pourcentage, ni cote, ni nombre de méprises ou d'indices). Ne pas nommer le titre du livre.
 - Ne jamais écrire « Merci de votre collaboration ». Ne jamais écrire « maîtrisé ».
@@ -399,7 +399,7 @@ RÈGLES
 
 STRUCTURE (paragraphes séparés par une ligne vide)
 1. FORCES ET NIVEAU : commencer par les forces personnelles cochées. Nommer ensuite le niveau avec la formule exacte de l'échelle (« ses résultats ${math?"en mathématique":"en lecture"} ${s.niveau?levelPhrase(s.niveau):"…"} »)${s.niveau==="D"||s.niveau==="E"?" en commençant la phrase par « Pour le moment, »":""}, puis les éléments du dépistage (texte narratif et texte informatif) solides, en voie d'acquisition, fragiles ou en défi. Un domaine plus fort peut être nuancé.
-2. ENTRETIEN DE LECTURE (paragraphe distinct) : décrire ce que l'entretien montre (lecture à voix haute, rappel de l'histoire, sens des mots nouveaux et stratégies, interprétation des émotions des personnages, choix de livres). Si un élément fragile au dépistage est réussi pendant l'entretien, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
+2. QUAND VOTRE ENFANT LIT (paragraphe distinct, trois phrases au plus) : à partir des données de l'entretien de lecture, dire en mots simples ce qu'on observe quand l'enfant lit avec l'enseignante (lecture à voix haute, raconter l'histoire, mots nouveaux, émotions des personnages). Réussites d'abord. Si un élément fragile au dépistage est réussi ici, parler de progrès. Intégrer ici les habitudes cochées avec ces formulations : écoute/implication → « Une écoute attentive pendant les explications et un plus grand engagement dans son travail personnel l'aideront à progresser. » ; temps → « Un peu plus de temps lui est parfois nécessaire pour terminer son travail. » ; consigne → « Il arrive que votre enfant commence avant d'avoir bien saisi la consigne. »
 3. OBJECTIF : un seul objectif, formulé « D'ici la mi-novembre, nous travaillerons surtout… », lié au principal défi.
 4. PRÉSENCE : ${s.absences?"OBLIGATOIRE, écrire exactement : « Une présence régulière en classe est essentielle pour lui permettre de progresser, puisque les nouvelles notions sont construites jour après jour. »":"ne pas écrire ce paragraphe (absences non cochées)."}
 5. RECOMMANDATION : UNE seule recommandation concrète pour la maison, liée à l'objectif, qui commence par « À la maison, vous pouvez… ».
@@ -430,11 +430,13 @@ function updateChecks(){
   ck(!/maîtris/i.test(t),"Pas de « maîtrisé »");
   ck(!/merci/i.test(t),"Aucun remerciement");
   ck(!/(équipe|coopér|collabor|pairs|camarade)/i.test(t),"Aucune mention de coopération ou de travail d'équipe");
+  ck(n<=1000,"Concis : 1000 caractères ou moins");
+  ck(!/(dépistage|entretien|inférence|interpréta|méprise|fluidité|décodage|stratégie|compétence|rappel|critère|narratif|informatif)/i.test(t),"Aucun mot d'enseignant (dépistage, inférence, fluidité…)");
   ck(t.includes("D'ici la mi-novembre")||t.includes("D’ici la mi-novembre"),"Objectif : « D'ici la mi-novembre… »");
   const rec=(t.match(/À la maison, vous pouvez/g)||[]).length;ck(rec===1,"Une seule recommandation « À la maison, vous pouvez… »");
   if(s.absences)ck(tl.includes("présence régulière"),"Phrase sur la présence (absences cochées)");
   $("#checks").innerHTML=C.map(c=>'<li class="'+(c[0]?"":"bad")+'">'+c[1]+'</li>').join("");
-  $("#btnFit").hidden=!sample||(n>=900&&n<=1200);
+  $("#btnFit").hidden=!sample||(n>=900&&n<=1000);
 }
 $("#comment").addEventListener("input",()=>{updateChecks();save()});
 
@@ -457,7 +459,7 @@ async function ask(prompt,label){
 $("#btnStop").onclick=()=>ctl&&ctl.abort();
 $("#btnAI").onclick=()=>ask(buildPrompt(getState()),"Claude rédige le commentaire… (quelques secondes)");
 $("#btnFit").onclick=()=>{const t=$("#comment").value.trim(),n=t.length;
-  ask(buildPrompt(getState())+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>1200?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre 950 et 1150 caractères en gardant la structure et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
+  ask(buildPrompt(getState())+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>1000?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre 900 et 1000 caractères en gardant la structure et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
 if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;setStatus("« Rédiger avec Claude » utilise vos cases et vos notes. « Version modèle » fonctionne sans Claude.");updateChecks()}}).catch(()=>{})}
 updateChecks();
 })();
