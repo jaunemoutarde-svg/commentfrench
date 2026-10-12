@@ -132,6 +132,7 @@ ul.checklist li::before{content:"✓";color:var(--good);font-weight:700;width:1e
 ul.checklist li.bad::before{content:"✗";color:var(--bad)}
 ul.checklist li.bad{color:var(--bad)}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.modifs{display:grid;gap:6px;border-top:1px solid var(--line);padding-top:10px}
 .crossbox{border-top:1px solid var(--line);padding-top:4px}
 .quest{margin-top:16px;border-top:1px solid var(--line);padding-top:4px}
 .qlist{margin:0 0 6px;padding-left:18px;display:grid;gap:4px;font-size:14px}
@@ -318,6 +319,11 @@ ul.checklist li.bad{color:var(--bad)}
         <div class="lenset"><label>Longueur visée : <input type="text" id="lenMin" inputmode="numeric" aria-label="Minimum de caractères"></label><label>à <input type="text" id="lenMax" inputmode="numeric" aria-label="Maximum de caractères"> caractères</label></div>
         <div class="bar"><i id="barFill" style="width:0"></i></div>
         <div class="btnrow"><button type="button" id="btnFit" hidden>Ajuster la longueur</button></div>
+        <div class="modifs">
+          <label class="field"><span>Mes modifications au commentaire</span><textarea id="modifs" placeholder="Ex. : ne pas parler du livre choisi; dire qu'elle lit avec plaisir à la maison; enlever la phrase sur l'écoute."></textarea></label>
+          <div class="btnrow"><button type="button" class="primary" id="btnModif" hidden>Appliquer mes modifications</button></div>
+          <p class="hint" style="margin:0">Vos modifications sont gardées avec l'élève. Elles sont aussi prises en compte à chaque nouvelle rédaction avec Claude.</p>
+        </div>
         <ul class="checklist" id="checks"></ul>
         <div class="crossbox" id="crossBox" hidden></div>
       </div>
@@ -470,11 +476,12 @@ function openStudent(id,scroll){
   const r=students[id];if(!r)return;flush();
   currentId=id;isExample=false;$("#exampleBanner").hidden=true;
   setState(r.state||{});$("#prenom").value=r.nom||"";$("#comment").value=r.comment||"";
+  $("#modifs").value=r.modifs||"";
   $("#curName").textContent=r.nom||"";updateChecks();renderFluid();renderQuest();renderCross();renderClass();renderHist();localSaveAll();
   setStatus("Profil de "+(r.nom||"l'élève")+" ouvert.");
   const f=$("#filtre").value;if(scroll){const sec=SECTIONS.find(x=>x[0]===f);const el=document.getElementById(sec?sec[2]:"sec_eleve");if(el)el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})}
 }
-function showExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=new Date().toISOString().slice(0,10);currentId=null;setState(d.state);$("#comment").value="";isExample=true;$("#exampleBanner").hidden=false;$("#curName").textContent="exemple";updateChecks();renderFluid();renderQuest();renderClass()}
+function showExample(){const d=JSON.parse(JSON.stringify(EXAMPLE));d.state.date=new Date().toISOString().slice(0,10);currentId=null;setState(d.state);$("#comment").value="";$("#modifs").value="";isExample=true;$("#exampleBanner").hidden=false;$("#curName").textContent="exemple";updateChecks();renderFluid();renderQuest();renderClass()}
 function showInitial(){if(currentId&&students[currentId])openStudent(currentId,false);else{const ids=sortedIds();if(ids.length)openStudent(ids[0],false);else showExample()}}
 
 function addList(text){
@@ -845,7 +852,7 @@ DÉMARCHE (dans cet ordre)
 
 COMMENTAIRES ÉCRITS DE L'ENSEIGNANTE (source principale)
 ${notesList(s).join("\n")||"(aucun commentaire écrit : appuie-toi sur les cases cochées)"}
-
+${modifsOf()?"\nMODIFICATIONS DEMANDÉES PAR L'ENSEIGNANTE SUR LE COMMENTAIRE (priorité absolue, à appliquer TOUTES; elles l'emportent sur les cases et sur les autres règles, sauf : aucun chiffre et texte neutre « votre enfant ») :\n« "+modifsOf()+" »\n":""}
 RÈGLES
 - COURT ET SIMPLE : entre ${effRange(s).min} et ${effRange(s).max} caractères, espaces comprises (jamais plus de ${effRange(s).max}). Un parent doit pouvoir le lire en moins d'une minute. Phrases courtes (15 mots au plus), une idée par phrase, mots de tous les jours. Garder SEULEMENT l'essentiel : une force, le niveau, les deux principales difficultés au plus, l'objectif et la recommandation. Laisser tomber les détails, les exemples et les nuances secondaires.
 - NOMMER CLAIREMENT LES DIFFICULTÉS : chaque élément coté « − » (défi) doit être nommé simplement, sans être caché par les formules positives (ex. « Trouver l'idée principale d'un texte reste difficile pour le moment. »). Les forces sont dites brièvement.
@@ -925,7 +932,7 @@ $("#btnCopy").onclick=async()=>{const ta=$("#comment");try{await navigator.clipb
 let sample=null,ctl=null;
 const ERR={not_granted:"Accès à Claude refusé pour cette page. La version modèle reste disponible.",rate_limited:"Trop de demandes rapprochées. Réessayez dans un moment.",aborted:"Rédaction arrêtée."};
 async function ask(prompt,label){
-  const btns=[$("#btnAI"),$("#btnFit"),$("#btnTpl")];btns.forEach(b=>b.disabled=true);$("#btnStop").hidden=false;
+  const btns=[$("#btnAI"),$("#btnFit"),$("#btnTpl"),$("#btnModif")];btns.forEach(b=>b.disabled=true);$("#btnStop").hidden=false;
   ctl=new AbortController();setStatus(label);const ta=$("#comment");const before=ta.value;
   try{const r=await sample(prompt,{signal:ctl.signal,cache:false,onText:({text})=>{ta.value=text;updateChecks()}});
     ta.value=r.text.trim();setStatus("Commentaire rédigé. Relisez-le avant de le copier au bulletin.")}
@@ -957,9 +964,14 @@ function renderCross(){const r=currentId&&students[currentId],c=r&&r.cross,box=$
   box.innerHTML='<p class="sub-h">Vos commentaires croisés avec les cases</p><ul class="flist">'+c.items.map(x=>{const l=LIEN[x.lien]||["voie",esc(x.lien||"")];
     return '<li><b><span class="tag '+l[0]+'">'+l[1]+'</span></b><span>« '+esc(x.commentaire||"")+' » → '+esc(x.cases||"")+'</span></li>'}).join("")+'</ul>'+
     (c.alertes.length?'<p class="sub-h">À vérifier</p><ul class="qlist">'+c.alertes.map(a=>'<li>'+esc(a)+'</li>').join("")+'</ul>':'')}
+function modifsOf(){const r=currentId&&students[currentId];return ((r&&r.modifs)||"").trim()}
+$("#modifs").addEventListener("input",()=>{const r=currentId&&students[currentId];if(!r)return;r.modifs=$("#modifs").value;r.updatedAt=Date.now();persist(currentId)});
+$("#btnModif").onclick=()=>{const t=$("#comment").value.trim();if(!modifsOf()){setStatus("Écrivez d'abord vos modifications.");return}
+  if(!t){$("#btnAI").click();return}
+  ask(buildPrompt(getState(),false)+"\n\nCOMMENTAIRE ACTUEL À MODIFIER :\n"+t+"\n\nRéécris ce commentaire en appliquant TOUTES les modifications demandées par l'enseignante ci-dessus. Garde tel quel ce qui n'est pas visé par une modification. Réponds uniquement avec le commentaire modifié.","Claude applique vos modifications…")};
 $("#btnFit").onclick=()=>{const t=$("#comment").value.trim(),n=t.length;
   ask(buildPrompt(getState(),false)+"\n\nVOICI UNE VERSION À AJUSTER ("+n+" caractères, "+(n>effRange(getState()).max?"trop long":"trop court")+"). Réécris-la pour qu'elle compte entre "+effRange(getState()).min+" et "+effRange(getState()).max+" caractères en gardant le niveau, les difficultés, les mesures de soutien et d'adaptation au complet, l'objectif, la recommandation et toutes les règles :\n\n"+t,"Ajustement de la longueur…")};
-if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;$("#btnFluid").hidden=false;setStatus("« Rédiger avec Claude » part de vos commentaires écrits et les croise avec les cases. La version rapide n'utilise que les cases.");updateChecks()}}).catch(()=>{})}
+if(window.claude&&claude.use){claude.use("sample").then(sm=>{if(sm){sample=sm;$("#btnAI").hidden=false;$("#btnModif").hidden=false;$("#btnFluid").hidden=false;setStatus("« Rédiger avec Claude » part de vos commentaires écrits et les croise avec les cases. La version rapide n'utilise que les cases.");updateChecks()}}).catch(()=>{})}
 initClass();
 })();
 </script>
