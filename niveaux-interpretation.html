@@ -1,0 +1,398 @@
+<title>Niveaux d'interprétation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout : espace d'évaluation à gauche (question, dictée, niveau), tableau de la classe à droite ; une colonne sur téléphone. */
+:root{
+  --paper:#F5F7F4; --sheet:#FFFFFF; --ink:#1D2B2E; --muted:#5B6B6E; --line:#D6DEDA;
+  --accent:#1F6F78; --accent-soft:#E2F0EF; --mark:#F2C14E; --mark-ink:#3A2C00;
+  --l1:#B3261E; --l2:#B26A00; --l3:#8A7A12; --l4:#2E7D4F; --l5:#1F6F78;
+  --f-display:"Literata",Georgia,"Times New Roman",serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#121A1B; --sheet:#1A2426; --ink:#E6ECEA; --muted:#9AABAA; --line:#2F3E40;
+  --accent:#6FC3C9; --accent-soft:#1E3436; --mark:#E7B84A; --mark-ink:#241A00;
+  --l1:#F08A80; --l2:#E3A34A; --l3:#D9C75A; --l4:#6CC891; --l5:#6FC3C9; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#121A1B; --sheet:#1A2426; --ink:#E6ECEA; --muted:#9AABAA; --line:#2F3E40;
+  --accent:#6FC3C9; --accent-soft:#1E3436; --mark:#E7B84A; --mark-ink:#241A00;
+  --l1:#F08A80; --l2:#E3A34A; --l3:#D9C75A; --l4:#6CC891; --l5:#6FC3C9; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(1.5rem,3vw,2.1rem);margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:700;font-size:1.15rem;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:62ch}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 4px}
+.hint{color:var(--muted);font-size:13px;margin:0}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:8px 14px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--sheet);font-weight:700}
+button.ghost{background:transparent}
+button:disabled{opacity:.55;cursor:default}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:24px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:18px;min-width:0}
+section.card{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0;display:grid;gap:12px}
+input[type=text],textarea,select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{resize:vertical}
+#reponse{min-height:170px;font-size:16px;line-height:1.55}
+.pick{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:520px){.pick{grid-template-columns:minmax(0,1fr)}}
+.field{display:grid;gap:4px;min-width:0}
+.field>span{font-size:13px;color:var(--muted)}
+.qtabs{display:flex;flex-wrap:wrap;gap:6px}
+.qtabs button{padding:6px 12px;font-variant-numeric:tabular-nums}
+.qtabs button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:700}
+.question{font-family:var(--f-display);font-size:1.05rem;line-height:1.45;margin:0;max-width:70ch}
+.comp{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--muted)}
+details.reperes summary{cursor:pointer;color:var(--accent);font-size:14px}
+.rep{display:grid;gap:8px;margin-top:8px}
+.rep div{border-left:3px solid var(--line);padding:2px 0 2px 10px;font-size:13.5px}
+.rep b{font-variant-numeric:tabular-nums}
+.dictee{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:13.5px;display:grid;gap:4px}
+.dictee strong{color:var(--accent)}
+.status{min-height:1.4em;font-size:14px;color:var(--muted)}
+.status.bad{color:var(--l1)}
+.result{border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;background:var(--paper)}
+.lvlrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.badge{display:inline-flex;align-items:baseline;gap:6px;font-family:var(--f-display);font-weight:700;font-size:1.6rem;line-height:1}
+.badge small{font-family:var(--f-body);font-size:13px;font-weight:400;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-left:1px solid var(--line);border-radius:0;padding:6px 12px;min-width:40px;background:var(--sheet);font-variant-numeric:tabular-nums}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--sheet);font-weight:700}
+.result ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.result h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
+.note{font-size:13.5px;border-left:3px solid var(--mark);padding-left:10px}
+.edited{font-size:12px;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table.classe{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+table.classe th,table.classe td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:center}
+table.classe th:first-child,table.classe td:first-child{text-align:left}
+table.classe th{font-size:12px;color:var(--muted);font-weight:700}
+table.classe tr.cur td{background:var(--accent-soft)}
+.cell{min-width:38px;padding:3px 0;border-radius:6px;border:1px solid transparent;background:transparent}
+.cell.on{border-color:var(--accent)}
+.code{font-weight:700}
+.lv{display:inline-block;min-width:24px;border-radius:999px;padding:1px 7px;font-weight:700;color:var(--sheet)}
+.lv.n1{background:var(--l1)}.lv.n2{background:var(--l2)}.lv.n3{background:var(--l3)}.lv.n4{background:var(--l4)}.lv.n5{background:var(--l5)}
+.empty{color:var(--muted)}
+.codes{display:grid;gap:6px}
+.coderow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.store{font-size:12.5px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12.5px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Interpréter en profondeur · 5e-6e année · Module 1</p>
+      <h1>Niveaux d'interprétation</h1>
+      <p class="sub">Dictez la réponse d'un élève. Claude la compare au corrigé de la préévaluation et propose un niveau avec ses arguments.</p>
+    </div>
+    <div class="actions">
+      <button type="button" id="btnPdf" class="primary">PDF de la classe</button>
+      <button type="button" id="btnPdfOne">PDF de cet élève</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="col">
+      <section class="card" aria-labelledby="hEval">
+        <h2 id="hEval" class="eyebrow" style="font-family:var(--f-body)">Évaluer une réponse</h2>
+        <div class="pick">
+          <label class="field"><span>Élève</span><select id="eleve"></select></label>
+          <div class="field"><span>Question</span><div class="qtabs" id="qtabs"></div></div>
+        </div>
+        <div>
+          <p class="question" id="qText"></p>
+          <p style="margin:6px 0 0"><span class="comp" id="qComp"></span></p>
+        </div>
+        <details class="reperes"><summary>Repères du corrigé pour cette question</summary><div class="rep" id="qRep"></div></details>
+
+        <label class="field" for="reponse"><span>Réponse de l'élève</span></label>
+        <textarea id="reponse" autocomplete="off" spellcheck="false" placeholder="Touchez ici, puis le micro du clavier pour dicter la réponse."></textarea>
+        <div class="dictee">
+          <span><strong>Dicter :</strong> touchez le champ, puis le micro du clavier (iPad, iPhone, Android), ou Fn Fn sur Mac, ou Windows + H.</span>
+          <span><strong>Rien n'est enregistré :</strong> aucun son n'est capté par la page, et le texte dicté est effacé dès que vous changez d'élève ou de question. Seuls le niveau et les arguments sont gardés.</span>
+        </div>
+        <div class="actions">
+          <button type="button" id="btnAnalyse" class="primary">Analyser le niveau</button>
+          <button type="button" id="btnClear" class="ghost">Effacer la réponse</button>
+          <button type="button" id="btnStop" hidden>Arrêter</button>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+
+        <div class="result" id="result" hidden>
+          <div class="lvlrow">
+            <span class="badge" id="rBadge"></span>
+            <span class="hint">Ajuster :</span>
+            <div class="seg" id="rSeg" role="group" aria-label="Niveau attribué"></div>
+          </div>
+          <div><h3>Arguments tirés du corrigé</h3><ul id="rArgs"></ul></div>
+          <div id="rMissBox"><h3>Pour atteindre le niveau suivant</h3><p id="rMiss" style="margin:4px 0 0"></p></div>
+          <p class="note" id="rHes" hidden></p>
+          <label class="field"><span>Modifier les arguments (un par ligne)</span><textarea id="rEdit" rows="5"></textarea></label>
+          <div class="actions">
+            <button type="button" id="btnNext" class="primary">Élève suivant</button>
+            <span class="edited" id="rDate"></span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card" aria-labelledby="hClasse">
+        <h2 id="hClasse">La classe</h2>
+        <p class="hint">Touchez une case pour évaluer cette question.</p>
+        <div class="tablewrap"><table class="classe" id="classe"></table></div>
+        <div class="legend"><span><span class="lv n5">5</span> à <span class="lv n3">3</span> niveaux du corrigé</span><span><span class="lv n2">2</span> en deçà du niveau 3</span><span><span class="lv n1">1</span> absente ou hors sujet</span></div>
+        <p class="store" id="store">Enregistré dans ce navigateur seulement.</p>
+      </section>
+      <section class="card" aria-labelledby="hCodes">
+        <h2 id="hCodes">Codes des élèves</h2>
+        <p class="hint">Le PDF n'affiche que ces codes. Renommer un code garde ses résultats.</p>
+        <div class="codes" id="codes"></div>
+        <div class="coderow"><input type="text" id="newCode" placeholder="Nouveau code, ex. E18" autocomplete="off"><button type="button" id="btnAddCode">Ajouter</button></div>
+        <button type="button" id="btnGen" hidden>Créer 17 codes (E01 à E17)</button>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- corrigé : Exemples de réponses à la préévaluation (TC Média) ---------- */
+const Q=[
+ {n:1,court:"Partie et ensemble",comp:"Analyser des parties d'une histoire par rapport à l'ensemble",
+  texte:"Relis les lignes 43 à 53 du texte Un chien errant. En quoi cette partie de l'histoire est-elle importante pour l'ensemble du texte ?",
+  niv:{
+   3:{ex:"Je pense que cette partie de l'histoire montre le problème. Doris veut garder le chien, mais ses parents ne veulent pas. Elle dit des choses pour essayer de les faire changer d'idée.",
+      desc:"Les réponses mentionnent habituellement l'élément de l'histoire souligné dans un passage précis du texte (dans ce cas-ci, « le problème »). Les réponses mentionnent également l'importance du passage par rapport au reste de l'histoire."},
+   4:{ex:"Cette partie de l'histoire montre le problème. Doris veut garder le chien, mais ses parents ne veulent pas. Une tension est présente dans cette partie parce que Doris essaie de convaincre ses parents de changer d'idée. Elle leur dit qu'il s'agit d'un bon chien. Mais ils ne bronchent pas. Ils ne veulent pas d'animal domestique parce qu'ils sont pauvres.",
+      desc:"Les réponses portent sur la façon dont un passage en particulier influe sur d'autres parties de l'histoire ou dont ces autres parties influent sur ce passage. Les élèves nomment l'élément de l'histoire présent dans l'extrait et mentionnent également des détails précis contenus dans d'autres parties de l'histoire, éventuellement pour expliquer une décision ou un changement."},
+   5:{ex:"Cette partie de l'histoire révèle le problème. Doris veut garder le chien, mais ses parents ne veulent pas. Une tension est présente dans cette partie, parce que Doris essaie de convaincre ses parents de changer d'idée. Elle leur dit : « C'est un bon chien, n'est-ce pas ? » et « Il ne cause pas trop de problèmes ». Ces paroles montrent à quel point Doris veut garder le chien. Mais ses parents ne bronchent pas. Ils ne veulent pas d'animal domestique parce qu'ils n'ont pas assez d'argent. Mais plus tard dans l'histoire, ils finissent par la laisser garder le chien. Cette partie montre l'idée qu'avec beaucoup d'effort, on peut avoir ce qu'on désire.",
+      desc:"Les réponses sont formulées dans un langage littéraire pour expliquer ce qui fait qu'une partie de l'histoire est importante pour l'ensemble du texte. En plus de discuter d'un ou de plusieurs éléments de l'histoire présents dans ce passage, les élèves peuvent aussi discuter de la façon dont ce dernier soutient une plus grande idée ou un plus grand thème dans le texte. Les réponses peuvent aussi porter sur le choix de mots de l'auteur ou ses techniques d'écriture, et incluent souvent des citations tirées du texte."}}},
+ {n:2,court:"Techniques de l'autrice",comp:"Analyser les techniques de l'auteur",
+  texte:"L'autrice aurait pu simplement écrire que M. Amos avait décidé de ramener le chien à la maison. Elle a plutôt écrit la scène qui se trouve dans le texte. Explique pourquoi l'autrice a probablement décidé d'écrire l'histoire de cette façon. Sers-toi de ce que tu connais des techniques et des objectifs des auteurs pour appuyer ta réponse.",
+  niv:{
+   3:{ex:"L'autrice a étiré cette scène pour surprendre le lecteur. Je pensais que M. Amos amenait le chien à la fourrière quand le coffre de l'auto s'est refermé. Mais il l'a ramené ! C'est important parce que Doris peut finalement garder le chien.",
+      desc:"Les réponses mentionnent les choix de l'auteur et la raison pour laquelle l'auteur a écrit ainsi (« parce que... »). Ces réponses peuvent aussi expliquer pourquoi ce dernier choix est important pour l'histoire."},
+   4:{ex:"L'autrice a étiré cette scène pour créer une tension pour le lecteur. Le lecteur pense que M. Amos amenait le chien à la fourrière quand le coffre de l'auto s'est refermé. On dirait que l'objectif de l'auteur est d'amener le lecteur à s'inquiéter, comme Doris, jusqu'à la fin. Cela rend la fin encore plus étonnante.",
+      desc:"Les élèves nomment une ou plusieurs techniques utilisées par l'auteur, ainsi que les objectifs que ce dernier tente d'atteindre. Ils peuvent essayer d'expliquer la signification de ce choix de procédé, éventuellement pour s'efforcer de démontrer quelque chose à propos d'un personnage ou de dire ce sur quoi porte vraiment l'histoire."},
+   5:{ex:"L'autrice a étiré cette scène afin de créer une tension pour le lecteur. Le lecteur pense que M. Amos amenait le chien à la fourrière quand le coffre de l'auto s'est refermé. On dirait que l'objectif de l'autrice est d'amener le lecteur à s'inquiéter, comme Doris, jusqu'à la fin. Comme cela, la fin est encore plus étonnante et satisfaisante. Elle se sert aussi de la technique « montrer plutôt que dire » pour faire comprendre que même si M. Amos agit comme s'il était très dur, il a un côté plus doux. Pour y arriver, elle se sert des paroles « je ne laisserais même pas une fourmi là-bas ». Cela montre que M. Amos se soucie suffisamment du chien pour ne pas le laisser à la fourrière.",
+      desc:"Les réponses sont formulées dans un langage littéraire afin de nommer quelques techniques d'écriture utilisées par l'auteur dans toute l'histoire et de mentionner les raisons justifiant ses choix. Les élèves peuvent réfléchir aux différences qu'ils auraient observées dans le texte si l'auteur avait choisi d'utiliser d'autres techniques. Autrement dit, ils comprennent que ces choix étaient délibérés et ont des répercussions importantes."}}},
+ {n:3,court:"Thèmes",comp:"Déterminer les thèmes / La cohésion",
+  texte:"Quels thèmes sont particulièrement importants dans l'histoire Un chien errant ? Donne des éléments de preuve pour appuyer tes idées.",
+  niv:{
+   3:{ex:"Doris a appris que parfois, les gens peuvent nous surprendre. Elle a appris cela quand son père l'a laissée garder le chien à la fin.",
+      desc:"Les réponses énoncent une leçon de vie apprise par un personnage dans l'histoire, le plus souvent à la fin. Les élèves font souvent un rappel d'une partie de l'histoire montrant cette leçon."},
+   4:{ex:"Un thème particulièrement important dans cette histoire est que parfois les gens peuvent nous surprendre. Au début de l'histoire, M. Amos est strict. Il dit que le chien va devoir s'en aller. Il ne semble pas se soucier du tout du chien. À la fin, cependant, il surprend Doris quand il ramène le chien et la laisse le garder. (Autre exemple : … Mais ensuite, il fait quelque chose d'étonnant. Il laisse le chien dormir au sous-sol ! Et plus tard, il surprend vraiment Doris quand il ramène le chien et la laisse le garder.)",
+      desc:"Les élèves explorent un même thème dans toute l'histoire. Ils ne sont pas encore en mesure de nommer plusieurs des thèmes présents dans le texte, mais peuvent expliquer la façon dont un même thème est abordé dans plus d'une partie de l'histoire. Certains peuvent le faire en soulignant l'absence du thème au début de l'histoire et sa présence à la fin, alors que d'autres peuvent donner un ou deux exemples du développement de ce thème en citant le texte."},
+   5:{ex:"Un des thèmes de cette histoire est que parfois les gens peuvent nous surprendre. Au début de l'histoire, M. Amos est très strict. Il semble même méchant. Par exemple, il dit qu'il ne sait pas d'où sort le chien, mais qu'il sait « parfaitement où il va aller ». Il ne semble pas du tout se soucier du chien ou des sentiments de Doris. À la fin, cependant, il surprend Doris quand il ramène le chien et dit « je ne laisserais même pas une fourmi là-bas » en parlant de la fourrière. Un autre thème de cette histoire est que si on n'abandonne pas, parfois on obtient ce qu'on désire. Même si aucun des parents de Doris ne veut du chien, Doris n'abandonne pas. Par exemple, elle leur dit à quel point c'est un bon chien. Elle dit : « Il ne cause pas trop de problèmes » et « Je crois qu'il est vraiment intelligent. » Et plus tard dans l'histoire, elle supplie sa mère de l'aider. Elle dit : « Maman, s'il te plaît. » Les dialogues montrent ces thèmes.",
+      desc:"Les réponses mentionnent plus d'un thème abordé dans l'histoire. Les élèves peuvent expliquer que des parties du texte abordent chacun des thèmes et donnent des détails précis ou citent le texte. Lorsqu'on leur demande de le faire, ils peuvent discuter des techniques utilisées par l'auteur pour souligner au moins un des thèmes."}}},
+ {n:4,court:"Comparer deux textes",comp:"Noter les ressemblances et les différences entre les éléments et les thèmes de l'histoire",
+  texte:"Projet H : un projet pour sensibiliser au handicap et Un chien errant explorent un même thème ou une même leçon de vie. Compare les façons dont un même thème est développé dans les deux histoires.",
+  niv:{
+   3:{ex:"La vidéo et le texte Un chien errant sont différents parce qu'ils portent sur deux sujets différents, la vie d'une élève en fauteuil roulant et les chiens. Mais les deux portent sur une façon d'aider quelqu'un d'autre. Dans Un chien errant, M. Amos aide le chien en lui donnant une nouvelle maison. Les amies d'Anna l'aident en animant des ateliers de sensibilisation avec elle.",
+      desc:"Les élèves discutent des ressemblances et des différences entre les éléments de l'histoire racontée dans deux textes (dans le présent exemple, les personnages). Ils peuvent également discuter des ressemblances et des différences dans la chronologie des événements. Ou encore, les élèves peuvent comparer les sujets des textes."},
+   4:{ex:"Un thème présent dans les deux histoires est que parfois les gens peuvent changer. Au début de Un chien errant, M. Amos ne se soucie pas du chien. Il l'amène même à la fourrière. À la fin, il revient avec le chien parce que la fourrière était terrible et qu'il ne pouvait pas laisser le chien là-bas. Il a changé. Dans la vidéo, plusieurs élèves changent, car ils sont touchés par les témoignages d'Anna et ses amis. Un élève dit que le fait que l'animation soit faite par Anna qui vit avec un handicap l'a aidé à mieux comprendre. Une amie raconte même que c'est Anna qui, un jour, est venue vers elle quand elle était nouvelle à l'école. Les deux histoires enseignent que les gens changent et que les gens peuvent apprendre à aider les autres. Mais elles sont différentes parce qu'une est une vidéo et l'autre une nouvelle.",
+      desc:"Les élèves discutent des ressemblances et des différences entre les éléments de l'histoire de deux textes (dans le présent exemple, les personnages). Ils déterminent aussi la présence d'un thème commun et expliquent les ressemblances et les différences dans les façons dont celui-ci est développé. Dans la réponse donnée en exemple, la différence est très littérale, mais dans l'ensemble, cette réponse se situe au niveau 4."},
+   5:{ex:"(Même début que le niveau 4, avec la citation « je sais parfaitement où il va aller » pour montrer que M. Amos ne se soucie pas du chien.) … De plus, alors que Un chien errant raconte l'histoire de la transformation de M. Amos, qui ne se souciait pas du chien puis s'en est soucié, la vidéo, elle, ne montre l'opinion positive des élèves qu'après l'atelier de sensibilisation.",
+      desc:"Les élèves déterminent la présence d'un thème commun et expliquent les ressemblances et les différences dans les façons dont celui-ci est développé. Pour y arriver, ils discutent des techniques utilisées par chacun des auteurs pour développer le thème."}}}
+];
+const NIV_LBL={1:"Absente ou hors sujet",2:"En deçà du niveau 3",3:"Niveau 3",4:"Niveau 4",5:"Niveau 5"};
+
+/* ---------- état ---------- */
+const KEY="niveauxInterp.v1";
+let students={},cur=null,qi=0,col=null,sample=null,busy=null;const timers={};
+const newId=()=>"s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const sorted=()=>Object.keys(students).sort((a,b)=>String(students[a].code).localeCompare(String(students[b].code),"fr",{numeric:true}));
+function localSave(){try{localStorage.setItem(KEY,JSON.stringify({students,cur,qi}))}catch(e){}}
+function localLoad(){try{return JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){return null}}
+function persist(id,now){localSave();if(!col)return;clearTimeout(timers[id]);
+  const go=()=>{delete timers[id];const r=students[id];if(r)col.doc(id).set(JSON.parse(JSON.stringify(r))).catch(()=>setStore("Erreur d'enregistrement dans votre compte. Les résultats restent dans ce navigateur.",true))};
+  if(now)go();else timers[id]=setTimeout(go,700)}
+function setStore(t,bad){const el=$("#store");el.textContent=t;el.style.color=bad?"var(--l1)":""}
+function setStatus(t,bad){const el=$("#status");el.textContent=t||"";el.className="status"+(bad?" bad":"")}
+
+/* ---------- affichage ---------- */
+function lvSpan(n){return n?'<span class="lv n'+n+'">'+n+'</span>':'<span class="empty">·</span>'}
+function renderSelect(){const ids=sorted();
+  $("#eleve").innerHTML=ids.length?ids.map(id=>'<option value="'+id+'"'+(id===cur?" selected":"")+'>'+esc(students[id].code)+'</option>').join(""):'<option value="">Ajoutez des codes d\'élèves</option>'}
+function renderTabs(){$("#qtabs").innerHTML=Q.map((q,i)=>'<button type="button" data-q="'+i+'" aria-pressed="'+(i===qi)+'" title="'+esc(q.court)+'">Q'+q.n+'</button>').join("")}
+function renderQuestion(){const q=Q[qi];$("#qText").textContent=q.n+". "+q.texte;$("#qComp").textContent=q.comp;
+  $("#qRep").innerHTML=[3,4,5].map(n=>'<div><b>Niveau '+n+'</b> — '+esc(q.niv[n].desc)+'</div>').join("")}
+function renderClass(){const ids=sorted();
+  $("#classe").innerHTML='<thead><tr><th scope="col">Code</th>'+Q.map(q=>'<th scope="col" title="'+esc(q.court)+'">Q'+q.n+'</th>').join("")+'</tr></thead><tbody>'+
+   (ids.length?ids.map(id=>{const s=students[id],ev=s.evals||{};
+    return '<tr'+(id===cur?' class="cur"':'')+'><td class="code">'+esc(s.code)+'</td>'+Q.map((q,i)=>{const e=ev["q"+q.n];
+      return '<td><button type="button" class="cell'+(id===cur&&i===qi?" on":"")+'" data-id="'+id+'" data-q="'+i+'" aria-label="'+esc(s.code)+', question '+q.n+(e?", niveau "+e.niveau:", à évaluer")+'">'+lvSpan(e&&e.niveau)+'</button></td>'}).join("")+'</tr>'}).join("")
+   :'<tr><td colspan="5" class="empty" style="text-align:left;padding:10px 4px">Aucun élève. Créez les 17 codes ci-dessous pour commencer.</td></tr>')+'</tbody>'}
+function renderCodes(){const ids=sorted();$("#btnGen").hidden=ids.length>0;
+  $("#codes").innerHTML=ids.map(id=>'<div class="coderow"><input type="text" data-code="'+id+'" value="'+esc(students[id].code)+'" aria-label="Code de l\'élève" autocomplete="off"><button type="button" class="ghost" data-del="'+id+'">Retirer</button></div>').join("")}
+function curEval(){const s=cur&&students[cur];return s&&s.evals&&s.evals["q"+Q[qi].n]}
+function renderResult(){const e=curEval();$("#result").hidden=!e;if(!e)return;
+  $("#rBadge").innerHTML=(e.niveau>=3?"Niveau "+e.niveau:e.niveau)+' <small>'+(e.niveau<3?esc(NIV_LBL[e.niveau]):"du corrigé")+'</small>';
+  $("#rBadge").style.color="var(--l"+e.niveau+")";
+  $("#rSeg").innerHTML=[1,2,3,4,5].map(n=>'<button type="button" data-n="'+n+'" aria-pressed="'+(n===e.niveau)+'" title="'+esc(NIV_LBL[n])+'">'+n+'</button>').join("");
+  $("#rArgs").innerHTML=(e.arguments||[]).map(a=>'<li>'+esc(a)+'</li>').join("")||'<li class="empty">Aucun argument.</li>';
+  $("#rMissBox").hidden=!e.manque;$("#rMiss").textContent=e.manque||"";
+  $("#rHes").hidden=!e.hesitation;$("#rHes").textContent=e.hesitation||"";
+  if(document.activeElement!==$("#rEdit"))$("#rEdit").value=(e.arguments||[]).join("\n");
+  $("#rDate").textContent=(e.ajuste?"Niveau ajusté par vous · ":"")+"Évalué le "+new Date(e.date).toLocaleDateString("fr-CA",{day:"numeric",month:"long"})}
+function renderAll(){renderSelect();renderTabs();renderQuestion();renderClass();renderCodes();renderResult()}
+
+/* la réponse dictée n'est jamais conservée : on l'efface à chaque changement d'élève ou de question */
+function select(id,q){if(busy)busy.abort();$("#reponse").value="";setStatus("");
+  if(id!=null)cur=id;if(q!=null)qi=q;localSave();renderAll()}
+
+$("#eleve").addEventListener("change",e=>select(e.target.value||null,null));
+$("#qtabs").addEventListener("click",e=>{const b=e.target.closest("button[data-q]");if(b)select(null,+b.dataset.q)});
+$("#classe").addEventListener("click",e=>{const b=e.target.closest("button[data-id]");if(!b)return;select(b.dataset.id,+b.dataset.q);
+  const r=$("#reponse");r.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});r.focus({preventScroll:true})});
+$("#btnClear").onclick=()=>{$("#reponse").value="";$("#reponse").focus();setStatus("Réponse effacée.")};
+
+/* ---------- codes ---------- */
+function addCodes(list){let first=null;list.forEach(c=>{c=c.trim();if(!c)return;if(Object.values(students).some(s=>s.code===c))return;
+  const id=newId();students[id]={code:c,evals:{},updatedAt:Date.now()};first=first||id;persist(id,true)});
+  if(!cur&&first)cur=sorted()[0];renderAll()}
+$("#btnGen").onclick=()=>addCodes(Array.from({length:17},(_,i)=>"E"+String(i+1).padStart(2,"0")));
+$("#btnAddCode").onclick=()=>{const v=$("#newCode").value;if(v.trim()){addCodes(v.split(/[\n,;]+/));$("#newCode").value=""}};
+$("#newCode").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("#btnAddCode").click()}});
+$("#codes").addEventListener("change",e=>{const id=e.target.dataset.code;if(!id||!students[id])return;const v=e.target.value.trim();
+  if(!v||Object.keys(students).some(k=>k!==id&&students[k].code===v)){e.target.value=students[id].code;setStatus("Ce code est vide ou déjà utilisé.",true);return}
+  students[id].code=v;students[id].updatedAt=Date.now();persist(id,true);renderSelect();renderClass()});
+let armed=null;
+$("#codes").addEventListener("click",e=>{const b=e.target.closest("button[data-del]");if(!b)return;const id=b.dataset.del;
+  if(armed!==id){armed=id;b.textContent="Confirmer";setTimeout(()=>{if(armed===id){armed=null;b.textContent="Retirer"}},3500);return}
+  armed=null;clearTimeout(timers[id]);delete students[id];if(col)col.doc(id).delete().catch(()=>{});
+  if(cur===id)cur=sorted()[0]||null;localSave();renderAll()});
+
+/* ---------- analyse par Claude ---------- */
+function buildPrompt(q,answer){
+  return "Tu es conseillère pédagogique en lecture au primaire (5e-6e année). Tu évalues la réponse d'un élève à une préévaluation « Interpréter en profondeur grâce aux clubs de lecture » portant sur la nouvelle Un chien errant"+(q.n===4?" et la vidéo Projet H : un projet pour sensibiliser au handicap":"")+".\n\n"+
+  "QUESTION "+q.n+" : "+q.texte+"\nCOMPÉTENCE ÉVALUÉE : "+q.comp+"\n\n"+
+  "CORRIGÉ (exemples de réponses et description de chaque niveau) :\n"+
+  [3,4,5].map(n=>"— NIVEAU "+n+"\nExemple : "+q.niv[n].ex+"\nDescription : "+q.niv[n].desc).join("\n\n")+"\n\n"+
+  "Niveaux possibles : 5, 4 ou 3 selon le corrigé ; 2 si la réponse est en lien avec la question mais n'a pas encore ce que décrit le niveau 3 ; 1 si la réponse est absente, hors sujet ou incompréhensible.\n"+
+  "Règles :\n- Un niveau est attribué seulement si ce que décrit ce niveau est vraiment présent dans la réponse. Compare avec les exemples du corrigé.\n"+
+  "- La réponse a été dictée par l'enseignante et transcrite par reconnaissance vocale : ne tiens aucun compte de l'orthographe, de la ponctuation, des accords ou des mots mal reconnus, et ne les mentionne jamais.\n"+
+  "- Chaque argument relie un élément précis de la réponse (un court extrait de quelques mots entre « ») à une phrase précise de la description du corrigé, reprise entre « ». Phrases courtes et simples, en français, sans nommer l'élève et sans « il » ni « elle » pour le désigner (écris « l'élève »).\n"+
+  "- Aucun jugement sur la personne : parle de la réponse.\n\n"+
+  "RÉPONSE DE L'ÉLÈVE :\n\"\"\"\n"+answer+"\n\"\"\"\n\n"+
+  "Réponds avec uniquement un objet JSON de cette forme :\n"+
+  '{"niveau": 4, "arguments": ["3 à 5 arguments"], "manque": "Une ou deux phrases : ce qu\'il faudrait ajouter pour atteindre le niveau suivant, d\'après le corrigé. Chaîne vide si niveau 5.", "hesitation": "Chaîne vide, ou une phrase si la réponse se situe entre deux niveaux."}'}
+$("#btnAnalyse").onclick=async()=>{
+  const answer=$("#reponse").value.trim();
+  if(!cur){setStatus("Ajoutez d'abord les codes des élèves.",true);return}
+  if(!answer){setStatus("Dictez ou écrivez d'abord la réponse de l'élève.",true);$("#reponse").focus();return}
+  if(!sample){setStatus("Claude n'est pas disponible ici. Ouvrez la page dans claude.ai, connectée à votre compte.",true);return}
+  const id=cur,q=Q[qi];busy=new AbortController();
+  $("#btnAnalyse").disabled=true;$("#btnStop").hidden=false;setStatus("Claude compare la réponse au corrigé…");
+  try{
+    const r=await sample.json(buildPrompt(q,answer),{signal:busy.signal,modelTier:"default"});
+    const n=Math.max(1,Math.min(5,Math.round(+r.niveau||0)));
+    if(!n||!students[id])throw {code:"bad",message:"Réponse illisible"};
+    const s=students[id];s.evals=s.evals||{};
+    s.evals["q"+q.n]={niveau:n,niveauClaude:n,arguments:(Array.isArray(r.arguments)?r.arguments:[]).map(String).filter(Boolean).slice(0,6),manque:String(r.manque||""),hesitation:String(r.hesitation||""),date:Date.now()};
+    s.updatedAt=Date.now();persist(id,true);$("#rEdit").value="";
+    if(id===cur&&q===Q[qi]){renderClass();renderResult();setStatus("Niveau proposé. Vous pouvez l'ajuster. La réponse dictée sera effacée au changement d'élève.")}
+    else renderClass();
+  }catch(e){
+    if(e&&e.code==="cancelled")setStatus("Analyse arrêtée.");
+    else if(e&&e.code==="not_granted"){sample=null;setStatus("L'accès à Claude a été refusé pour cette page. Vous pouvez le réactiver dans le menu Autorisations de l'artefact.",true)}
+    else if(e&&e.code==="rate_limited")setStatus("Trop de demandes d'un coup. Attendez une minute, puis réessayez.",true);
+    else setStatus("L'analyse n'a pas abouti. Réessayez.",true);
+  }finally{busy=null;$("#btnAnalyse").disabled=false;$("#btnStop").hidden=true}
+};
+$("#btnStop").onclick=()=>{if(busy)busy.abort()};
+$("#rSeg").addEventListener("click",e=>{const b=e.target.closest("button[data-n]");const ev=curEval();if(!b||!ev)return;
+  ev.niveau=+b.dataset.n;ev.ajuste=ev.niveau!==ev.niveauClaude;students[cur].updatedAt=Date.now();persist(cur,true);renderClass();renderResult()});
+$("#rEdit").addEventListener("input",()=>{const ev=curEval();if(!ev)return;
+  ev.arguments=$("#rEdit").value.split("\n").map(s=>s.replace(/^\s*[-•]\s*/,"").trim()).filter(Boolean);students[cur].updatedAt=Date.now();persist(cur);
+  $("#rArgs").innerHTML=ev.arguments.map(a=>'<li>'+esc(a)+'</li>').join("")});
+$("#btnNext").onclick=()=>{const ids=sorted(),i=ids.indexOf(cur);
+  const after=ids.slice(i+1).concat(ids.slice(0,i+1)).find(id=>!((students[id].evals||{})["q"+Q[qi].n]));
+  if(!after){setStatus("Tous les élèves ont un niveau pour la question "+Q[qi].n+".");return}
+  select(after,null);$("#reponse").focus()};
+
+/* ---------- PDF ---------- */
+/* Helvetica de jsPDF ne connaît que le jeu Windows-1252 : on remplace le reste */
+const CP="€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
+function pdfText(s){return String(s==null?"":s).replace(/[   ]/g," ").replace(/[‐‑−]/g,"-").replace(/[≥]/g,">=").replace(/[≤]/g,"<=").replace(/[→]/g,"->")
+  .split("").filter(c=>c.charCodeAt(0)<256||CP.includes(c)).join("")}
+function buildPdf(ids,title){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"pt",format:"letter"});
+  const W=doc.internal.pageSize.getWidth(),M=48,today=new Date().toLocaleDateString("fr-CA",{day:"numeric",month:"long",year:"numeric"});
+  const teal=[31,111,120],ink=[29,43,46],muted=[91,107,110];
+  const head=t=>{doc.setFont("helvetica","bold");doc.setFontSize(16);doc.setTextColor(...ink);doc.text(pdfText(t),M,M+8)};
+  const foot=()=>{const n=doc.getNumberOfPages();for(let p=1;p<=n;p++){doc.setPage(p);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...muted);
+    doc.text(pdfText("Interpréter en profondeur · 5e-6e année · Module 1 · Préévaluation"),M,doc.internal.pageSize.getHeight()-24);
+    doc.text(p+" / "+n,W-M,doc.internal.pageSize.getHeight()-24,{align:"right"})}};
+  head(title);doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...muted);
+  doc.text(pdfText("Niveaux attribués d'après le corrigé « Exemples de réponses à la préévaluation » · "+today),M,M+26);
+  doc.autoTable({startY:M+40,margin:{left:M,right:M},head:[["Code"].concat(Q.map(q=>"Q"+q.n))],
+    body:ids.map(id=>{const ev=students[id].evals||{};return [pdfText(students[id].code)].concat(Q.map(q=>{const e=ev["q"+q.n];return e?String(e.niveau):"—"}))}),
+    styles:{font:"helvetica",fontSize:10,halign:"center",cellPadding:5,textColor:ink},columnStyles:{0:{halign:"left",fontStyle:"bold"}},
+    headStyles:{fillColor:teal,textColor:255},alternateRowStyles:{fillColor:[245,247,244]},theme:"grid"});
+  let y=doc.lastAutoTable.finalY+16;doc.setFontSize(9);doc.setTextColor(...muted);
+  Q.forEach(q=>{const lines=doc.splitTextToSize(pdfText("Q"+q.n+" – "+q.comp),W-2*M);doc.text(lines,M,y);y+=lines.length*11+2});
+  doc.text(pdfText("Niveaux 3, 4 et 5 : niveaux du corrigé. 2 : en deçà du niveau 3. 1 : réponse absente ou hors sujet."),M,y+4);
+  ids.forEach(id=>{const s=students[id],ev=s.evals||{};doc.addPage();head("Élève "+s.code);
+    doc.autoTable({startY:M+24,margin:{left:M,right:M},head:[["Question","Niveau","Arguments tirés du corrigé","Pour atteindre le niveau suivant"]],
+      body:Q.map(q=>{const e=ev["q"+q.n];return [pdfText("Q"+q.n+"\n"+q.comp),e?pdfText(e.niveau>=3?String(e.niveau):e.niveau+"\n"+NIV_LBL[e.niveau]):"—",
+        e?pdfText((e.arguments||[]).map(a=>"• "+a).join("\n")):"Non évaluée",e?pdfText([e.manque,e.hesitation].filter(Boolean).join("\n\n")):""]}),
+      styles:{font:"helvetica",fontSize:9,cellPadding:6,valign:"top",textColor:ink,overflow:"linebreak"},
+      columnStyles:{0:{cellWidth:110},1:{cellWidth:52,halign:"center",fontStyle:"bold",fontSize:11},3:{cellWidth:140}},
+      headStyles:{fillColor:teal,textColor:255,fontSize:9},theme:"grid"})});
+  foot();return doc}
+async function savePdf(ids,title,filename){
+  if(!ids.length){setStatus("Aucun élève à mettre dans le PDF.",true);return}
+  if(!window.jspdf||!window.jspdf.jsPDF){setStatus("La création de PDF n'a pas pu se charger. Rechargez la page.",true);return}
+  flushAll();const doc=buildPdf(ids,title);
+  const dl=window.claude&&claude.use?await claude.use("downloads"):null;
+  if(!dl){try{doc.save(filename);setStatus("PDF créé.")}catch(e){setStatus("Le téléchargement n'est pas permis ici.",true)}return}
+  try{await dl.save({filename,data:doc.output("blob")});setStatus("PDF enregistré.")}
+  catch(e){setStatus(e&&e.code==="declined"?"Téléchargement annulé.":"Le PDF n'a pas pu être enregistré. Réessayez.",!(e&&e.code==="declined"))}}
+const stamp=()=>new Date().toISOString().slice(0,10);
+$("#btnPdf").onclick=()=>savePdf(sorted(),"Préévaluation – niveaux de la classe","niveaux-interpretation-classe-"+stamp()+".pdf");
+$("#btnPdfOne").onclick=()=>{if(!cur){setStatus("Choisissez un élève.",true);return}
+  savePdf([cur],"Préévaluation – niveaux de l'élève "+students[cur].code,"niveaux-interpretation-"+students[cur].code.replace(/[^\w.-]+/g,"_")+"-"+stamp()+".pdf")};
+function flushAll(){Object.keys(timers).forEach(id=>persist(id,true))}
+
+/* ---------- démarrage ---------- */
+const L=localLoad();if(L&&L.students){students=L.students;cur=L.cur;qi=L.qi||0}
+if(!students[cur])cur=sorted()[0]||null;
+renderAll();
+if(window.claude&&claude.use){
+  claude.use("sample").then(sm=>{sample=sm;if(!sm)setStatus("Claude n'est pas disponible ici : l'analyse ne fonctionne que dans claude.ai.",true)}).catch(()=>{});
+  Promise.all([claude.use("db"),claude.use("user")]).then(async([db,user])=>{
+    const uid=db&&user?await user.id():null;
+    if(!uid){setStore("Enregistré dans ce navigateur seulement. Connectez-vous à Claude pour retrouver la classe sur tous vos appareils.");return}
+    col=db.collection("data/users/"+uid);
+    const snap=await col.get();const remote={};snap.docs.forEach(d=>{const v=d.data();if(v&&v.code!=null)remote[d.id]=v});
+    if(Object.keys(remote).length){students=remote;if(!students[cur])cur=sorted()[0]||null;localSave();renderAll()}
+    else Object.keys(students).forEach(id=>persist(id,true));
+    setStore("Résultats enregistrés dans votre compte Claude, visibles par vous seule. Les réponses dictées ne le sont jamais.");
+    col.onSnapshot(sn=>{let ch=false;sn.docChanges().forEach(c=>{const id=c.doc.id;if(timers[id])return;
+      if(c.type==="removed"){if(students[id]){delete students[id];ch=true;if(id===cur)cur=sorted()[0]||null}return}
+      const v=c.doc.data();if(v&&v.code!=null&&(!students[id]||(students[id].updatedAt||0)<(v.updatedAt||0))){students[id]=v;ch=true}});
+      if(ch){localSave();renderSelect();renderClass();renderCodes();if(document.activeElement!==$("#rEdit"))renderResult()}});
+  }).catch(()=>setStore("Enregistré dans ce navigateur seulement."));
+}else setStatus("Claude n'est pas disponible ici : l'analyse ne fonctionne que dans claude.ai.",true);
+})();
+</script>
