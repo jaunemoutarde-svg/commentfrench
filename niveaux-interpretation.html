@@ -88,6 +88,23 @@ table.classe tr.cur td{background:var(--accent-soft)}
 .coderow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 .store{font-size:12.5px;color:var(--muted)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12.5px;color:var(--muted)}
+table.stats td:first-child{white-space:nowrap}
+.plan{display:grid;gap:14px}
+.plan .synth{margin:0;max-width:70ch}
+.prio{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;border-top:1px solid var(--line);padding-top:14px}
+.prio .rang{font-family:var(--f-display);font-weight:700;font-size:1.8rem;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.prio h3{font-family:var(--f-display);font-size:1.05rem;margin:0;text-wrap:balance}
+.prio .meta{font-size:13px;color:var(--muted);margin:2px 0 6px}
+.prio dl{margin:0;display:grid;gap:6px;font-size:14px}
+.prio dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.prio dd{margin:0}
+.prio ul{margin:0;padding-left:18px;display:grid;gap:3px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chips span{font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-weight:700;font-variant-numeric:tabular-nums}
+.groupes{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:8px}
+.groupes h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
+.grp{display:grid;gap:4px;font-size:14px}
+.stale{font-size:13px;border-left:3px solid var(--mark);padding-left:10px;margin:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -146,6 +163,21 @@ table.classe tr.cur td{background:var(--accent-soft)}
             <span class="edited" id="rDate"></span>
           </div>
         </div>
+      </section>
+
+      <section class="card" aria-labelledby="hPrio">
+        <div>
+          <h2 id="hPrio">Priorités pour la classe</h2>
+          <p class="hint">À faire quand la classe est évaluée. Claude lit tous les niveaux et ce qui manque à chaque élève, puis classe ce qu'il faut travailler en premier.</p>
+        </div>
+        <div class="tablewrap"><table class="classe stats" id="stats"></table></div>
+        <div class="actions">
+          <button type="button" id="btnPlan" class="primary">Établir les priorités</button>
+          <button type="button" id="btnPdfPlan" hidden>PDF des priorités</button>
+          <button type="button" id="btnStopPlan" hidden>Arrêter</button>
+        </div>
+        <p class="status" id="planStatus" role="status" aria-live="polite"></p>
+        <div id="plan" class="plan" hidden></div>
       </section>
     </div>
 
@@ -218,10 +250,11 @@ const NIV_LBL={1:"Absente ou hors sujet",2:"En deçà du niveau 3",3:"Niveau 3",
 
 /* ---------- état ---------- */
 const KEY="niveauxInterp.v1";
-let students={},cur=null,qi=0,col=null,sample=null,busy=null;const timers={};
+let students={},cur=null,qi=0,col=null,sample=null,busy=null,plan=null,planBusy=null;const timers={};
+const PLAN_ID="_priorites";
 const newId=()=>"s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const sorted=()=>Object.keys(students).sort((a,b)=>String(students[a].code).localeCompare(String(students[b].code),"fr",{numeric:true}));
-function localSave(){try{localStorage.setItem(KEY,JSON.stringify({students,cur,qi}))}catch(e){}}
+function localSave(){try{localStorage.setItem(KEY,JSON.stringify({students,cur,qi,plan}))}catch(e){}}
 function localLoad(){try{return JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){return null}}
 function persist(id,now){localSave();if(!col)return;clearTimeout(timers[id]);
   const go=()=>{delete timers[id];const r=students[id];if(r)col.doc(id).set(JSON.parse(JSON.stringify(r))).catch(()=>setStore("Erreur d'enregistrement dans votre compte. Les résultats restent dans ce navigateur.",true))};
@@ -241,7 +274,29 @@ function renderClass(){const ids=sorted();
    (ids.length?ids.map(id=>{const s=students[id],ev=s.evals||{};
     return '<tr'+(id===cur?' class="cur"':'')+'><td class="code">'+esc(s.code)+'</td>'+Q.map((q,i)=>{const e=ev["q"+q.n];
       return '<td><button type="button" class="cell'+(id===cur&&i===qi?" on":"")+'" data-id="'+id+'" data-q="'+i+'" aria-label="'+esc(s.code)+', question '+q.n+(e?", niveau "+e.niveau:", à évaluer")+'">'+lvSpan(e&&e.niveau)+'</button></td>'}).join("")+'</tr>'}).join("")
-   :'<tr><td colspan="5" class="empty" style="text-align:left;padding:10px 4px">Aucun élève. Créez les 17 codes ci-dessous pour commencer.</td></tr>')+'</tbody>'}
+   :'<tr><td colspan="5" class="empty" style="text-align:left;padding:10px 4px">Aucun élève. Créez les 17 codes ci-dessous pour commencer.</td></tr>')+'</tbody>';
+  renderStats()}
+/* répartition des niveaux par question */
+function stats(){const ids=sorted();return Q.map(q=>{const c={1:0,2:0,3:0,4:0,5:0};let none=0;
+  ids.forEach(id=>{const e=(students[id].evals||{})["q"+q.n];if(e)c[e.niveau]++;else none++});return {q,c,none,done:ids.length-none}})}
+const evalCount=()=>Object.values(students).reduce((t,s)=>t+Object.keys(s.evals||{}).length,0);
+function renderStats(){const st=stats();
+  $("#stats").innerHTML='<thead><tr><th scope="col">Question</th>'+[1,2,3,4,5].map(n=>'<th scope="col">'+lvSpan(n)+'</th>').join("")+'<th scope="col">Non évalués</th></tr></thead><tbody>'+
+   st.map(s=>'<tr><td>Q'+s.q.n+' · '+esc(s.q.court)+'</td>'+[1,2,3,4,5].map(n=>'<td>'+(s.c[n]||'<span class="empty">0</span>')+'</td>').join("")+'<td>'+(s.none||'<span class="empty">0</span>')+'</td></tr>').join("")+'</tbody>';
+  renderPlanStale()}
+function codesOf(list){return (list||[]).map(String).filter(Boolean)}
+function renderPlan(){const box=$("#plan");$("#btnPdfPlan").hidden=!plan;box.hidden=!plan;if(!plan)return;
+  box.innerHTML='<p class="stale" id="planStale" hidden></p>'+(plan.synthese?'<p class="synth">'+esc(plan.synthese)+'</p>':'')+
+   (plan.priorites||[]).map((p,i)=>'<article class="prio"><div class="rang">'+(i+1)+'</div><div><h3>'+esc(p.titre)+'</h3>'+
+     '<p class="meta">'+esc((p.questions||[]).map(n=>"Q"+n).join(", "))+(p.competence?' · '+esc(p.competence):'')+'</p><dl>'+
+     '<div><dt>Pourquoi en priorité</dt><dd>'+esc(p.pourquoi)+'</dd></div>'+
+     '<div><dt>Élèves visés ('+codesOf(p.eleves).length+')</dt><dd class="chips">'+codesOf(p.eleves).map(c=>'<span>'+esc(c)+'</span>').join("")+'</dd></div>'+
+     '<div><dt>Pistes d\'enseignement</dt><dd><ul>'+(p.pistes||[]).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></dd></div>'+
+     (p.reussite?'<div><dt>Signe de réussite</dt><dd>'+esc(p.reussite)+'</dd></div>':'')+'</dl></div></article>').join("")+
+   ((plan.groupes||[]).length?'<div class="groupes"><h3>Groupes de besoins</h3>'+plan.groupes.map(g=>'<div class="grp"><b>'+esc(g.nom)+'</b><span class="chips">'+codesOf(g.eleves).map(c=>'<span>'+esc(c)+'</span>').join("")+'</span><span>'+esc(g.focus)+'</span></div>').join("")+'</div>':'');
+  renderPlanStale()}
+function renderPlanStale(){const el=document.getElementById("planStale");if(!el||!plan)return;const d=evalCount()-(plan.nbEvals||0);
+  el.hidden=false;el.textContent="Établi le "+new Date(plan.date).toLocaleDateString("fr-CA",{day:"numeric",month:"long"})+" à partir de "+plan.nbEvals+" évaluations."+(d!==0?" Les résultats ont changé depuis : relancez « Établir les priorités » pour en tenir compte.":"")}
 function renderCodes(){const ids=sorted();$("#btnGen").hidden=ids.length>0;
   $("#codes").innerHTML=ids.map(id=>'<div class="coderow"><input type="text" data-code="'+id+'" value="'+esc(students[id].code)+'" aria-label="Code de l\'élève" autocomplete="off"><button type="button" class="ghost" data-del="'+id+'">Retirer</button></div>').join("")}
 function curEval(){const s=cur&&students[cur];return s&&s.evals&&s.evals["q"+Q[qi].n]}
@@ -254,7 +309,7 @@ function renderResult(){const e=curEval();$("#result").hidden=!e;if(!e)return;
   $("#rHes").hidden=!e.hesitation;$("#rHes").textContent=e.hesitation||"";
   if(document.activeElement!==$("#rEdit"))$("#rEdit").value=(e.arguments||[]).join("\n");
   $("#rDate").textContent=(e.ajuste?"Niveau ajusté par vous · ":"")+"Évalué le "+new Date(e.date).toLocaleDateString("fr-CA",{day:"numeric",month:"long"})}
-function renderAll(){renderSelect();renderTabs();renderQuestion();renderClass();renderCodes();renderResult()}
+function renderAll(){renderSelect();renderTabs();renderQuestion();renderClass();renderCodes();renderResult();renderPlan()}
 
 /* la réponse dictée n'est jamais conservée : on l'efface à chaque changement d'élève ou de question */
 function select(id,q){if(busy)busy.abort();$("#reponse").value="";setStatus("");
@@ -330,19 +385,86 @@ $("#btnNext").onclick=()=>{const ids=sorted(),i=ids.indexOf(cur);
   if(!after){setStatus("Tous les élèves ont un niveau pour la question "+Q[qi].n+".");return}
   select(after,null);$("#reponse").focus()};
 
+/* ---------- priorités de la classe ---------- */
+function setPlanStatus(t,bad){const el=$("#planStatus");el.textContent=t||"";el.className="status"+(bad?" bad":"")}
+function buildPlanPrompt(){const ids=sorted(),st=stats();
+  return "Tu es conseillère pédagogique en lecture au primaire (5e-6e année). Une enseignante a fait passer à sa classe la préévaluation « Interpréter en profondeur grâce aux clubs de lecture » (nouvelle Un chien errant et vidéo Projet H). Chaque réponse a reçu un niveau selon le corrigé.\n\n"+
+  "LES 4 QUESTIONS ET CE QUE DÉCRIT LE CORRIGÉ :\n"+Q.map(q=>"Q"+q.n+" — "+q.comp+"\n"+[3,4,5].map(n=>"  Niveau "+n+" : "+q.niv[n].desc).join("\n")).join("\n\n")+"\n\n"+
+  "Échelle : 5, 4, 3 = niveaux du corrigé ; 2 = en deçà du niveau 3 ; 1 = absente ou hors sujet.\n\n"+
+  "RÉPARTITION DES NIVEAUX :\n"+st.map(s=>"Q"+s.q.n+" : "+[1,2,3,4,5].map(n=>"niveau "+n+" = "+s.c[n]).join(", ")+", non évalués = "+s.none).join("\n")+"\n\n"+
+  "RÉSULTATS PAR ÉLÈVE (code, niveau, ce qui manque pour atteindre le niveau suivant) :\n"+
+  ids.map(id=>{const s=students[id],ev=s.evals||{};return s.code+"\n"+Q.map(q=>{const e=ev["q"+q.n];return "  Q"+q.n+" : "+(e?"niveau "+e.niveau+(e.manque?" — manque : "+e.manque:""):"non évaluée")}).join("\n")}).join("\n")+"\n\n"+
+  "TÂCHE : détermine ce qui est primordial à travailler avec toute la classe, en ordre de priorité (3 à 5 priorités). Classe d'abord ce qui touche le plus d'élèves et ce qui sert de base aux autres apprentissages (par exemple, appuyer ses idées sur le texte avant d'analyser les techniques de l'autrice). Une priorité peut toucher plusieurs questions.\n"+
+  "Règles : appuie-toi uniquement sur les données ci-dessus et sur le vocabulaire du corrigé ; donne des chiffres (combien d'élèves) dans « pourquoi » ; les pistes sont des actions concrètes en classe (mini-leçon, modelage, club de lecture, outil d'appui) ; ne parle jamais d'orthographe ni de grammaire ; désigne les élèves seulement par leur code ; phrases courtes, en français.\n"+
+  "Propose aussi 2 à 4 groupes de besoins pour les clubs de lecture (chaque code au plus dans un groupe).\n\n"+
+  "Réponds avec uniquement un objet JSON de cette forme :\n"+
+  '{"synthese": "2 ou 3 phrases sur le portrait de la classe", "priorites": [{"titre": "Ce qu\'il faut travailler, en quelques mots", "questions": [1, 3], "competence": "compétence du corrigé visée", "pourquoi": "Constat chiffré", "eleves": ["codes des élèves visés"], "pistes": ["2 à 4 actions concrètes"], "reussite": "Ce que l\'on verra dans les réponses quand ce sera acquis, d\'après le corrigé"}], "groupes": [{"nom": "Nom du groupe", "eleves": ["codes"], "focus": "Ce que ce groupe travaille"}]}'}
+$("#btnPlan").onclick=async()=>{
+  if(!evalCount()){setPlanStatus("Évaluez d'abord des réponses : il n'y a encore aucun niveau.",true);return}
+  if(!sample){setPlanStatus("Claude n'est pas disponible ici. Ouvrez la page dans claude.ai, connectée à votre compte.",true);return}
+  const st=stats(),manq=st.reduce((t,s)=>t+s.none,0);
+  planBusy=new AbortController();$("#btnPlan").disabled=true;$("#btnStopPlan").hidden=false;
+  setPlanStatus("Claude analyse les résultats de la classe…"+(manq?" ("+manq+" réponses ne sont pas encore évaluées.)":""));
+  try{
+    const r=await sample.json(buildPlanPrompt(),{signal:planBusy.signal,modelTier:"complex"});
+    const known=new Set(Object.values(students).map(s=>String(s.code)));
+    const clean=l=>codesOf(l).filter(c=>known.has(c));
+    plan={synthese:String(r.synthese||""),
+      priorites:(Array.isArray(r.priorites)?r.priorites:[]).slice(0,6).map(p=>({titre:String(p.titre||""),questions:(p.questions||[]).map(Number).filter(n=>n>=1&&n<=4),competence:String(p.competence||""),
+        pourquoi:String(p.pourquoi||""),eleves:clean(p.eleves),pistes:(p.pistes||[]).map(String).filter(Boolean),reussite:String(p.reussite||"")})),
+      groupes:(Array.isArray(r.groupes)?r.groupes:[]).map(g=>({nom:String(g.nom||""),eleves:clean(g.eleves),focus:String(g.focus||"")})),
+      date:Date.now(),nbEvals:evalCount(),updatedAt:Date.now()};
+    if(!plan.priorites.length)throw {code:"bad"};
+    localSave();if(col)col.doc(PLAN_ID).set(JSON.parse(JSON.stringify(plan))).catch(()=>{});
+    renderPlan();setPlanStatus("Priorités établies. Le PDF des priorités est prêt.");
+  }catch(e){
+    if(e&&e.code==="cancelled")setPlanStatus("Analyse arrêtée.");
+    else if(e&&e.code==="not_granted"){sample=null;setPlanStatus("L'accès à Claude a été refusé pour cette page. Vous pouvez le réactiver dans le menu Autorisations de l'artefact.",true)}
+    else if(e&&e.code==="rate_limited")setPlanStatus("Trop de demandes d'un coup. Attendez une minute, puis réessayez.",true);
+    else setPlanStatus("L'analyse n'a pas abouti. Réessayez.",true);
+  }finally{planBusy=null;$("#btnPlan").disabled=false;$("#btnStopPlan").hidden=true}
+};
+$("#btnStopPlan").onclick=()=>{if(planBusy)planBusy.abort()};
+
 /* ---------- PDF ---------- */
 /* Helvetica de jsPDF ne connaît que le jeu Windows-1252 : on remplace le reste */
 const CP="€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
 function pdfText(s){return String(s==null?"":s).replace(/[   ]/g," ").replace(/[‐‑−]/g,"-").replace(/[≥]/g,">=").replace(/[≤]/g,"<=").replace(/[→]/g,"->")
   .split("").filter(c=>c.charCodeAt(0)<256||CP.includes(c)).join("")}
-function buildPdf(ids,title){
+const teal=[31,111,120],ink=[29,43,46],muted=[91,107,110];
+function pdfBase(){
   const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"pt",format:"letter"});
   const W=doc.internal.pageSize.getWidth(),M=48,today=new Date().toLocaleDateString("fr-CA",{day:"numeric",month:"long",year:"numeric"});
-  const teal=[31,111,120],ink=[29,43,46],muted=[91,107,110];
   const head=t=>{doc.setFont("helvetica","bold");doc.setFontSize(16);doc.setTextColor(...ink);doc.text(pdfText(t),M,M+8)};
   const foot=()=>{const n=doc.getNumberOfPages();for(let p=1;p<=n;p++){doc.setPage(p);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...muted);
     doc.text(pdfText("Interpréter en profondeur · 5e-6e année · Module 1 · Préévaluation"),M,doc.internal.pageSize.getHeight()-24);
     doc.text(p+" / "+n,W-M,doc.internal.pageSize.getHeight()-24,{align:"right"})}};
+  return {doc,W,M,today,head,foot}}
+function buildPlanPdf(){const {doc,W,M,today,head,foot}=pdfBase();
+  head("Priorités pour la classe");doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...muted);
+  doc.text(pdfText("Préévaluation « Interpréter en profondeur » · établi le "+new Date(plan.date).toLocaleDateString("fr-CA",{day:"numeric",month:"long",year:"numeric"})+" à partir de "+plan.nbEvals+" évaluations · imprimé le "+today),M,M+26,{maxWidth:W-2*M});
+  let y=M+46;
+  if(plan.synthese){doc.setFontSize(10.5);doc.setTextColor(...ink);const l=doc.splitTextToSize(pdfText(plan.synthese),W-2*M);doc.text(l,M,y);y+=l.length*13+8}
+  doc.autoTable({startY:y,margin:{left:M,right:M},head:[["Question","1","2","3","4","5","Non évalués"]],
+    body:stats().map(s=>[pdfText("Q"+s.q.n+" – "+s.q.court)].concat([1,2,3,4,5].map(n=>String(s.c[n])),[String(s.none)])),
+    styles:{font:"helvetica",fontSize:9,halign:"center",cellPadding:4,textColor:ink},columnStyles:{0:{halign:"left"}},
+    headStyles:{fillColor:teal,textColor:255},theme:"grid"});
+  y=doc.lastAutoTable.finalY+18;
+  (plan.priorites||[]).forEach((p,i)=>{
+    doc.autoTable({startY:y,margin:{left:M,right:M},
+      head:[[{content:pdfText("Priorité "+(i+1)+" – "+p.titre),colSpan:2}]],
+      body:[["Questions",pdfText((p.questions||[]).map(n=>"Q"+n).join(", ")+(p.competence?" – "+p.competence:""))],
+        ["Pourquoi",pdfText(p.pourquoi)],["Élèves visés",pdfText(codesOf(p.eleves).join(", ")||"—")],
+        ["Pistes",pdfText((p.pistes||[]).map(x=>"• "+x).join("\n"))],["Signe de réussite",pdfText(p.reussite||"—")]],
+      styles:{font:"helvetica",fontSize:9.5,cellPadding:5,valign:"top",textColor:ink},columnStyles:{0:{cellWidth:95,fontStyle:"bold",textColor:muted}},
+      headStyles:{fillColor:teal,textColor:255,fontSize:11},theme:"grid",rowPageBreak:"avoid"});
+    y=doc.lastAutoTable.finalY+14});
+  if((plan.groupes||[]).length)doc.autoTable({startY:y,margin:{left:M,right:M},head:[["Groupe de besoins","Élèves","Ce que le groupe travaille"]],
+    body:plan.groupes.map(g=>[pdfText(g.nom),pdfText(codesOf(g.eleves).join(", ")),pdfText(g.focus)]),
+    styles:{font:"helvetica",fontSize:9.5,cellPadding:5,valign:"top",textColor:ink},columnStyles:{0:{cellWidth:120,fontStyle:"bold"},1:{cellWidth:120}},
+    headStyles:{fillColor:teal,textColor:255},theme:"grid",rowPageBreak:"avoid"});
+  foot();return doc}
+function buildPdf(ids,title){const {doc,W,M,today,head,foot}=pdfBase();
   head(title);doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...muted);
   doc.text(pdfText("Niveaux attribués d'après le corrigé « Exemples de réponses à la préévaluation » · "+today),M,M+26);
   doc.autoTable({startY:M+40,margin:{left:M,right:M},head:[["Code"].concat(Q.map(q=>"Q"+q.n))],
@@ -363,7 +485,11 @@ function buildPdf(ids,title){
 async function savePdf(ids,title,filename){
   if(!ids.length){setStatus("Aucun élève à mettre dans le PDF.",true);return}
   if(!window.jspdf||!window.jspdf.jsPDF){setStatus("La création de PDF n'a pas pu se charger. Rechargez la page.",true);return}
-  flushAll();const doc=buildPdf(ids,title);
+  flushAll();await offerPdf(buildPdf(ids,title),filename,setStatus)}
+$("#btnPdfPlan").onclick=()=>{if(!plan)return;
+  if(!window.jspdf||!window.jspdf.jsPDF){setPlanStatus("La création de PDF n'a pas pu se charger. Rechargez la page.",true);return}
+  offerPdf(buildPlanPdf(),"priorites-classe-"+stamp()+".pdf",setPlanStatus)};
+async function offerPdf(doc,filename,setStatus){
   const dl=window.claude&&claude.use?await claude.use("downloads"):null;
   if(!dl){try{doc.save(filename);setStatus("PDF créé.")}catch(e){setStatus("Le téléchargement n'est pas permis ici.",true)}return}
   try{await dl.save({filename,data:doc.output("blob")});setStatus("PDF enregistré.")}
@@ -375,7 +501,7 @@ $("#btnPdfOne").onclick=()=>{if(!cur){setStatus("Choisissez un élève.",true);r
 function flushAll(){Object.keys(timers).forEach(id=>persist(id,true))}
 
 /* ---------- démarrage ---------- */
-const L=localLoad();if(L&&L.students){students=L.students;cur=L.cur;qi=L.qi||0}
+const L=localLoad();if(L&&L.students){students=L.students;cur=L.cur;qi=L.qi||0;plan=L.plan||null}
 if(!students[cur])cur=sorted()[0]||null;
 renderAll();
 if(window.claude&&claude.use){
@@ -384,11 +510,13 @@ if(window.claude&&claude.use){
     const uid=db&&user?await user.id():null;
     if(!uid){setStore("Enregistré dans ce navigateur seulement. Connectez-vous à Claude pour retrouver la classe sur tous vos appareils.");return}
     col=db.collection("data/users/"+uid);
-    const snap=await col.get();const remote={};snap.docs.forEach(d=>{const v=d.data();if(v&&v.code!=null)remote[d.id]=v});
-    if(Object.keys(remote).length){students=remote;if(!students[cur])cur=sorted()[0]||null;localSave();renderAll()}
-    else Object.keys(students).forEach(id=>persist(id,true));
+    const snap=await col.get();const remote={};let remotePlan=null;
+    snap.docs.forEach(d=>{const v=d.data();if(d.id===PLAN_ID){remotePlan=v;return}if(v&&v.code!=null)remote[d.id]=v});
+    if(Object.keys(remote).length){students=remote;if(!students[cur])cur=sorted()[0]||null;if(remotePlan)plan=remotePlan;localSave();renderAll()}
+    else{Object.keys(students).forEach(id=>persist(id,true));if(plan)col.doc(PLAN_ID).set(JSON.parse(JSON.stringify(plan))).catch(()=>{})}
     setStore("Résultats enregistrés dans votre compte Claude, visibles par vous seule. Les réponses dictées ne le sont jamais.");
     col.onSnapshot(sn=>{let ch=false;sn.docChanges().forEach(c=>{const id=c.doc.id;if(timers[id])return;
+      if(id===PLAN_ID){const v=c.type==="removed"?null:c.doc.data();if(v&&(!plan||(plan.updatedAt||0)<(v.updatedAt||0))){plan=v;localSave();renderPlan()}return}
       if(c.type==="removed"){if(students[id]){delete students[id];ch=true;if(id===cur)cur=sorted()[0]||null}return}
       const v=c.doc.data();if(v&&v.code!=null&&(!students[id]||(students[id].updatedAt||0)<(v.updatedAt||0))){students[id]=v;ch=true}});
       if(ch){localSave();renderSelect();renderClass();renderCodes();if(document.activeElement!==$("#rEdit"))renderResult()}});
